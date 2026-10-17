@@ -1,0 +1,254 @@
+/* =========================================================
+   Player do HooTube (Vidstack + layout Plyr)
+   Tudo restrito a .hoo-player; o estilo base fica em vidstack-bundle.css
+   ========================================================= */
+
+.hoo-player {
+  /* A cor vem de --cor_primaria (definida no :root do style.css) */
+  --plyr-color-main: var(--cor_primaria, #ff0033);
+  --plyr-video-control-color: #ffffff;
+  --plyr-video-control-color-hover: #ffffff;
+  --plyr-video-controls-background: linear-gradient(rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.7));
+}
+
+.hoo-player media-player,
+.hoo-player .plyr {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: 16 / 9;
+  max-width: 100%;
+  margin: 0 auto;
+  border-radius: inherit;
+  overflow: hidden;
+}
+
+/* Botão de play grande no centro: acompanha a largura do player (cqw = % da largura do player) */
+.hoo-player {
+  container-type: inline-size;
+}
+
+.hoo-player .plyr__control--overlaid {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  width: clamp(40px, 11cqw, 60px) !important;
+  height: clamp(40px, 11cqw, 60px) !important;
+  padding: 0 !important;
+  background: var(--plyr-color-main) !important;
+  border-radius: 50% !important;
+  opacity: 1 !important;
+}
+
+.hoo-player .plyr__control--overlaid svg {
+  width: clamp(18px, 4.6cqw, 26px) !important;
+  height: clamp(18px, 4.6cqw, 26px) !important;
+}
+
+.hoo-player .plyr--playing .plyr__control--overlaid {
+  opacity: 0 !important;
+  visibility: hidden !important;
+}
+
+/* Barra de controles: progresso em cima, botões embaixo */
+.hoo-player .plyr__controls {
+  padding: 0 20px 10px !important;
+  flex-wrap: wrap !important;
+  justify-content: flex-start !important;
+}
+
+.hoo-player .plyr__controls > .plyr__control,
+.hoo-player .plyr__controls > .plyr__menu > .plyr__control {
+  background: transparent !important;
+  padding: 8px !important;
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+.hoo-player .plyr__controls > .plyr__control:hover,
+.hoo-player .plyr__controls > .plyr__menu > .plyr__control:hover,
+.hoo-player .plyr__controls > .plyr__menu > .plyr__control[aria-expanded="true"] {
+  background: var(--plyr-color-main) !important;
+}
+
+.hoo-player .plyr__slider__track {
+  height: 6px !important;
+  border-radius: 3px !important;
+}
+
+.hoo-player .plyr__slider__thumb {
+  background: #ffffff !important;
+  width: 16px !important;
+  height: 16px !important;
+}
+
+/* Ordem dos itens na barra */
+.hoo-player .plyr__controls > .plyr__control,
+.hoo-player .plyr__controls > .plyr__volume,
+.hoo-player .plyr__controls > .plyr__progress__container,
+.hoo-player .plyr__controls > .plyr__time,
+.hoo-player .plyr__controls > .plyr__menu {
+  order: 2;
+  margin: 10px 1px 0 !important;
+}
+
+.hoo-player .plyr__controls > .plyr__progress__container {
+  order: 0;
+  flex: calc(100% + 16px) !important;
+  margin: 5px -8px 0 !important;
+  padding-right: 12px !important;
+  align-items: center !important;
+  z-index: 0 !important;
+}
+
+.hoo-player .plyr__controls > [data-plyr="play"],
+.hoo-player .plyr__controls > [data-plyr="rewind"],
+.hoo-player .plyr__controls > [data-plyr="fast-forward"] {
+  order: 1;
+}
+
+.hoo-player .plyr__controls > [data-plyr="play"] {
+  margin-left: 0 !important;
+}
+
+.hoo-player .plyr__controls > .plyr__time--current {
+  order: 3;
+  margin-left: 10px !important;
+  margin-right: auto !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+}
+
+.hoo-player .plyr__controls::after {
+  content: "";
+  flex-grow: 1;
+  order: 4;
+}
+
+.hoo-player .plyr__controls > [data-plyr="captions"] { order: 5; }
+/* Botão "abrir no YouTube": existe no DOM, mas fica oculto (remova esta regra para exibir) */
+.hoo-player #hoo-yt-btn {
+  order: 6;
+  display: none !important;
+}
+.hoo-player .plyr__controls > .plyr__menu { order: 7; }
+
+.hoo-player .plyr__controls > [data-plyr="fullscreen"] {
+  order: 8;
+  margin-right: 0 !important;
+}
+
+.hoo-player .plyr__controls > [data-plyr="pip"],
+.hoo-player .plyr__controls > [data-plyr="airplay"] {
+  display: none !important;
+}
+
+/* Menu de configurações abre para cima */
+.hoo-player .plyr__menu__container {
+  zoom: 1.2;
+  top: auto !important;
+  bottom: 100% !important;
+}
+
+/* Barra de controles em players estreitos (celular): tudo na mesma linha, sem quebrar.
+   Progresso em cima e botões embaixo; os botões encolhem junto com a largura do player
+   (cqw = % da largura do player, ver container-type acima) em vez de ir para outra linha. */
+@container (max-width: 520px) {
+  .hoo-player .plyr__controls {
+    padding: 0 8px 6px !important;
+  }
+
+  .hoo-player .plyr__controls > .plyr__control,
+  .hoo-player .plyr__controls > .plyr__volume > .plyr__control,
+  .hoo-player .plyr__controls > .plyr__menu > .plyr__control {
+    --hoo-btn: clamp(26px, 9.6cqw, 36px);   /* tamanho do botão: de 26 px (mínimo) a 36 px */
+    box-sizing: border-box;
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--hoo-btn);
+    height: var(--hoo-btn);
+    padding: 0 !important;
+  }
+
+  .hoo-player .plyr__controls > .plyr__control svg,
+  .hoo-player .plyr__controls > .plyr__volume > .plyr__control svg,
+  .hoo-player .plyr__controls > .plyr__menu > .plyr__control svg {
+    width: calc(var(--hoo-btn) * 0.52) !important;
+    height: calc(var(--hoo-btn) * 0.52) !important;
+  }
+
+  .hoo-player .plyr__controls > .plyr__control,
+  .hoo-player .plyr__controls > .plyr__volume,
+  .hoo-player .plyr__controls > .plyr__progress__container,
+  .hoo-player .plyr__controls > .plyr__time,
+  .hoo-player .plyr__controls > .plyr__menu {
+    margin-top: 4px !important;
+  }
+
+  .hoo-player .plyr__controls > .plyr__time--current {
+    margin-left: clamp(2px, 1.5cqw, 8px) !important;
+    font-size: clamp(11px, 3.4cqw, 14px) !important;
+  }
+
+  .hoo-player .plyr__slider__track {
+    height: 4px !important;
+  }
+
+  .hoo-player .plyr__slider__thumb {
+    width: 12px !important;
+    height: 12px !important;
+  }
+
+  /* No celular o volume é pelo botão do aparelho */
+  .hoo-player media-volume-slider {
+    display: none !important;
+  }
+
+  .hoo-player .plyr__menu__container {
+    zoom: 1;
+  }
+}
+
+/* Players muito estreitos: sem espaço para voltar/avançar 10 s (os gestos de toque continuam) */
+@container (max-width: 250px) {
+  .hoo-player .plyr__controls > [data-plyr="rewind"],
+  .hoo-player .plyr__controls > [data-plyr="fast-forward"] {
+    display: none !important;
+  }
+}
+
+/* Aviso rápido no vídeo (+10 s, volume, etc.) */
+.hoo-player {
+  position: relative;
+}
+
+.hoo-hint {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 10px 18px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.65);
+  color: #ffffff;
+  font-size: 0.95rem;
+  font-weight: 600;
+  pointer-events: none;
+  opacity: 0;
+  z-index: 5;
+}
+
+.hoo-hint[data-side="left"] { left: 18%; }
+.hoo-hint[data-side="right"] { left: 82%; }
+
+.hoo-hint.show {
+  animation: hoo-hint 0.8s ease-out;
+}
+
+@keyframes hoo-hint {
+  0% { opacity: 0; }
+  12% { opacity: 1; }
+  70% { opacity: 1; }
+  100% { opacity: 0; }
+}
