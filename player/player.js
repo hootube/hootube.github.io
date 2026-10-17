@@ -112,6 +112,8 @@ function hasUserInteracted() {
 // este código os substitui. Teclado: Espaço/K, F, M, ←/→ (5 s), J/L (10 s), ↑/↓ (volume),
 // 0–9, Home/End e < / > (velocidade). Toque: duplo toque nas laterais avança/volta 10 s e
 // duplo toque no centro alterna a tela cheia. Mouse: clique pausa e duplo clique é tela cheia.
+// Toque/clique simples só pausa/toca se os controles JÁ estavam visíveis; com os controles
+// escondidos, ele apenas os exibe (o seguinte pausa/toca).
 // =========================================================
 const DOUBLE_TAP_MS = 280;      // intervalo máximo entre os dois toques/cliques
 const SEEK_CHAIN_MS = 600;      // depois de um duplo toque, toques seguidos na lateral continuam pulando
@@ -237,6 +239,7 @@ function setupKeyboardShortcuts(player, container) {
 function setupPointerGestures(player, container) {
   let tapTimer = 0;
   let pending = null;      // primeiro toque/clique aguardando o segundo
+  let visibleAtDown = true; // controles visíveis no instante em que o toque/clique começou
   let chainUntil = 0;      // até quando toques laterais continuam pulando
 
   const zoneOf = (event, element) => {
@@ -250,6 +253,11 @@ function setupPointerGestures(player, container) {
     seekBy(player, amount);
     showHint(container, `${amount > 0 ? "+" : "−"}${SEEK_BIG} s`, zone);
     chainUntil = performance.now() + SEEK_CHAIN_MS;
+  };
+
+  // Registrado na captura para ler o estado ANTES de o próprio toque reexibir os controles
+  const onPointerDown = event => {
+    if (event.button === 0 && event.target.closest?.(".vds-blocker")) visibleAtDown = !!player.state.controlsVisible;
   };
 
   const onPointerUp = event => {
@@ -281,16 +289,20 @@ function setupPointerGestures(player, container) {
     }
 
     // Primeiro toque/clique: espera para saber se vem um segundo
+    const controlsWereVisible = visibleAtDown;
     pending = { zone, time: now };
     tapTimer = setTimeout(() => {
       pending = null;
-      togglePlay(player);
+      if (controlsWereVisible) togglePlay(player);
+      else player.controls.show(); // controles escondidos: o toque só os exibe
     }, DOUBLE_TAP_MS);
   };
 
+  player.addEventListener("pointerdown", onPointerDown, true);
   player.addEventListener("pointerup", onPointerUp);
   return () => {
     clearTimeout(tapTimer);
+    player.removeEventListener("pointerdown", onPointerDown, true);
     player.removeEventListener("pointerup", onPointerUp);
   };
 }

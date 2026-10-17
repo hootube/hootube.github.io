@@ -22,7 +22,9 @@
   overflow: hidden;
 }
 
-/* Botão de play grande no centro: acompanha a largura do player (cqw = % da largura do player) */
+/* Botão de play grande no centro: sempre com o tamanho do círculo cinza que o YouTube mostra
+   dentro do iframe ao pausar/tocar (56 px, em qualquer largura). Menor que isso, ele aparece
+   como uma "bolinha" dentro do círculo do YouTube. */
 .hoo-player {
   container-type: inline-size;
 }
@@ -31,8 +33,8 @@
   display: flex !important;
   align-items: center;
   justify-content: center;
-  width: clamp(40px, 11cqw, 60px) !important;
-  height: clamp(40px, 11cqw, 60px) !important;
+  width: 56px !important;
+  height: 56px !important;
   padding: 0 !important;
   background: var(--plyr-color-main) !important;
   border-radius: 50% !important;
@@ -40,8 +42,8 @@
 }
 
 .hoo-player .plyr__control--overlaid svg {
-  width: clamp(18px, 4.6cqw, 26px) !important;
-  height: clamp(18px, 4.6cqw, 26px) !important;
+  width: 26px !important;
+  height: 26px !important;
 }
 
 .hoo-player .plyr--playing .plyr__control--overlaid {
