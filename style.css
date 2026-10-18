@@ -1956,10 +1956,12 @@ body.modal-open .toast {
 
 /* Botão de ação destrutiva (limpar dados) */
 .action-btn.danger-btn {
-  color: var(--cor_primaria);
+  background-color: var(--cor_primaria);
+  color: #ffffff;
+  font-weight: 600;
 }
 
 .action-btn.danger-btn:hover {
   background-color: var(--cor_primaria);
-  color: #ffffff;
+  filter: brightness(0.9);
 }
