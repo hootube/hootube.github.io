@@ -191,6 +191,8 @@
     "Tudo fica guardado localmente neste aparelho.": "Everything is stored locally on this device.",
     "Exportar": "Export",
     "Importar": "Import",
+    "Ver mais": "Show more",
+    "Ver menos": "Show less",
     // ---- player (rótulos)
     "Abrir no YouTube": "Open on YouTube"
   };
@@ -356,6 +358,8 @@
     "Tudo fica guardado localmente neste aparelho.": "Todo se guarda localmente en este dispositivo.",
     "Exportar": "Exportar",
     "Importar": "Importar",
+    "Ver mais": "Ver más",
+    "Ver menos": "Ver menos",
     "Abrir no YouTube": "Abrir en YouTube"
   };
 

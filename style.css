@@ -721,9 +721,14 @@ button {
   line-height: 1.5;
   white-space: pre-line;
   display: -webkit-box;
-  -webkit-line-clamp: 8;
+  -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+.description-text.expanded {
+  display: block;
+  overflow: visible;
 }
 
 .description-link,
@@ -738,6 +743,11 @@ button {
 }
 
 .more-less-btn {
+  background: none;
+  border: 0;
+  padding: 0;
+  font-family: inherit;
+  cursor: pointer;
   display: inline-block;
   margin-top: 8px;
   font-weight: 600;

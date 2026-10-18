@@ -1,11 +1,11 @@
 /**
  * Configuração do HooTube.
  *
- * Ordem das fontes de dados (busca, comentários):
- *   1) Piped           <- principal, ativo
- *   2) VPS             <- inativo (comentado abaixo)
- *   3) Cloudflare      <- inativo (comentado abaixo)
- * A VPS e a Cloudflare só são usadas se forem ativadas aqui E se o Piped falhar.
+ * Ordem das fontes de dados (busca, detalhes do vídeo, comentários):
+ *   1) VPS (API própria)  <- principal, ativa
+ *   2) Piped              <- reserva, ativa
+ *   3) Cloudflare         <- terceira opção, INATIVA (comentada abaixo)
+ * Cada fonte só é tentada se a anterior falhar. A página do canal usa o Piped.
  */
 window.HOOTUBE_CONFIG = {
 
@@ -24,12 +24,16 @@ window.HOOTUBE_CONFIG = {
   ],
 
   // ============================================================================
-  // API PRÓPRIA (worker) — INATIVA. Para ativar, tire o "//" da linha desejada.
-  // A ordem importa: a primeira linha ativa é tentada antes da seguinte.
-  // Só é consultada se o Piped acima falhar. Veja worker/README.md.
+  // API PRÓPRIA (worker) — veja worker/README.md
   // ============================================================================
+
+  // 1) Principal: VPS (HTTPS). É tentada primeiro; se falhar, o app usa o Piped.
   apiBases: [
-    // "https://api.huvuptvbz.qd.je",                    // 2) VPS (precisa de HTTPS funcionando)
-    // "https://hootube-api.pablomalmeida7.workers.dev"  // 3) Cloudflare Workers
+    "https://api-hootube.alpsolucoes.com"
+  ],
+
+  // 3) Terceira opção, só depois do Piped falhar. INATIVA: tire o "//" para ativar.
+  apiFallbacks: [
+    // "https://hootube-api.pablomalmeida7.workers.dev"  // Cloudflare Workers
   ]
 };

@@ -227,7 +227,7 @@ const playerDate = document.getElementById("playerDate");
 const playerTags = document.getElementById("playerTags");
 const playerDescription = document.getElementById("playerDescription");
 const descriptionBox = document.getElementById("descriptionBox");
-const ytLink = document.getElementById("ytLink");
+const descToggleBtn = document.getElementById("descToggleBtn");
 const commentsCountText = document.getElementById("commentsCountText");
 const commentsList = document.getElementById("commentsList");
 const loadMoreCommentsBtn = document.getElementById("loadMoreCommentsBtn");
@@ -297,29 +297,33 @@ function extractYouTubeId(urlOrQuery) {
 // Busca no YouTube via instâncias públicas do Piped (sem API key, sem login)
 // =========================================================
 // Ordem das fontes: 1) Piped  2) VPS  3) Cloudflare.
-// Piped e API própria são configurados em config.js; a API própria (VPS/Cloudflare) só é usada
-// se estiver ativada lá e se o Piped falhar (veja worker/README.md).
+// Fontes configuradas em config.js: API própria na VPS (principal), Piped (reserva) e, por último,
+// uma API reserva opcional (Cloudflare). Cada uma só é tentada se a anterior falhar.
 const CONFIG = window.HOOTUBE_CONFIG || {};
 const cleanUrl = value => String(value || "").trim().replace(/\/+$/, "");
 
-const API_BASES = (CONFIG.apiBases || []).map(cleanUrl).filter(Boolean);
+const API_BASES = (CONFIG.apiBases || []).map(cleanUrl).filter(Boolean);          // principal (antes do Piped)
+const API_LATE = (CONFIG.apiFallbacks || []).map(cleanUrl).filter(Boolean);       // reserva (depois do Piped)
+const HAS_API = API_BASES.length + API_LATE.length > 0;
 const UI_LANG = navigator.language || "pt-BR";
 const API_COOLDOWN_MS = 60 * 1000;
 const apiCooldown = new Map(); // base -> instante até o qual é ignorada após uma falha
 
-// Chama a API em ordem de prioridade. Com `onlyBase` (continuações), usa só aquele servidor.
-async function fetchApiJson(path, onlyBase = null) {
-  if (!API_BASES.length) throw new Error("API não configurada");
+// Chama a API em ordem de prioridade. Com `onlyBase` (continuações), usa só aquele servidor;
+// `bases` escolhe o grupo (principal ou reserva). Servidor que falhou fica em espera por 1 min
+// (nesse tempo o app nem tenta, para a busca cair logo no Piped).
+async function fetchApiJson(path, onlyBase = null, bases = [...API_BASES, ...API_LATE]) {
+  if (!bases.length) throw new Error("API não configurada");
 
   const now = Date.now();
-  let bases = onlyBase ? [onlyBase] : API_BASES.filter(b => (apiCooldown.get(b) || 0) <= now);
-  if (!bases.length) bases = API_BASES; // todas em espera: tenta de novo mesmo assim
+  const candidates = onlyBase ? [onlyBase] : bases.filter(b => (apiCooldown.get(b) || 0) <= now);
+  if (!candidates.length) throw new Error("API em espera");
 
   const url = path + (path.includes("?") ? "&" : "?") + "hl=" + encodeURIComponent(UI_LANG);
   let lastError;
-  for (const base of bases) {
+  for (const base of candidates) {
     try {
-      const res = await fetch(base + url, { signal: AbortSignal.timeout(10000) });
+      const res = await fetch(base + url, { signal: AbortSignal.timeout(7000) });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       apiCooldown.delete(base);
       return { data: await res.json(), base };
@@ -451,6 +455,7 @@ function mapApiVideo(item) {
     duration: item.live ? "AO VIVO" : (item.durationText || formatDuration(item.duration)),
     channel: item.channel || t("Canal no YouTube"),
     channelAvatar: item.channelAvatar || "",
+    channelId: item.channelId || "",
     subscribers: "",
     views: item.viewsText || "",
     date: item.published || "",
@@ -469,14 +474,22 @@ function parseApiSearchPage(data, base) {
 }
 
 // Cursor de continuação: { src: "api" | "piped", token, base? }
+async function searchApi(query, bases) {
+  const { data, base } = await fetchApiJson(`/api/search?q=${encodeURIComponent(query)}`, null, bases);
+  return parseApiSearchPage(data, base);
+}
+
+// VPS -> Piped -> API reserva (Cloudflare, se ativada)
 async function searchYouTube(query) {
+  let lastError;
+  if (API_BASES.length) {
+    try { return await searchApi(query, API_BASES); } catch (err) { lastError = err; }
+  }
   try {
     return await fetchPipedPage(`/search?q=${encodeURIComponent(query)}&filter=videos`);
-  } catch (err) {
-    if (!API_BASES.length) throw err; // sem API própria ativada: não há reserva
-  }
-  const { data, base } = await fetchApiJson(`/api/search?q=${encodeURIComponent(query)}`);
-  return parseApiSearchPage(data, base);
+  } catch (err) { lastError = err; }
+  if (API_LATE.length) return searchApi(query, API_LATE);
+  throw lastError;
 }
 
 async function searchYouTubeNext(query, cursor) {
@@ -733,10 +746,6 @@ function fillPlayerMetadata(video) {
   playerDate.textContent = video.date;
   playerTags.textContent = video.tags.join(" ");
   renderDescription(video.description);
-
-  // A descrição vem como o Piped entrega (trecho curto); o resto está no YouTube
-  ytLink.classList.toggle("hidden", !video.youtubeId);
-  if (video.youtubeId) ytLink.href = `https://www.youtube.com/watch?v=${encodeURIComponent(video.youtubeId)}`;
 }
 
 // Descrição completa, views, data, inscritos e título localizado vêm da API própria.
@@ -763,6 +772,7 @@ function applyVideoDetails(video, d) {
   if (d.subscribers) video.subscribers = d.subscribers.replace(/\u00a0/g, " ");
   if (d.channel) video.channel = d.channel;
   if (d.channelAvatar) video.channelAvatar = d.channelAvatar;
+  if (d.channelId) video.channelId = d.channelId;
 }
 
 // Vídeo aberto por link direto (?v=) ou por uma playlist não passou por uma busca, então faltam a
@@ -793,9 +803,9 @@ async function enrichFromSearch(video) {
 }
 
 async function enrichPlayer(video) {
-  // Detalhes completos só existem na API própria: busca-os apenas se o vídeo veio dela
-  // (com o Piped como fonte principal, a descrição é o trecho curto que ele entrega).
-  const details = video.fromApi && API_BASES.length ? await fetchVideoDetails(video.youtubeId) : null;
+  // Detalhes completos (descrição inteira, no idioma original) só existem na API própria; se ela
+  // não responder, o Piped dá só o trecho curto da descrição.
+  const details = video.youtubeId && HAS_API ? await fetchVideoDetails(video.youtubeId) : null;
   if (details) {
     applyVideoDetails(video, details);
   } else if (!video.titleLocalized) {
@@ -858,6 +868,7 @@ async function mountVideoPlayer(video) {
 
 function openVideoPlayer(video) {
   state.currentVideo = video;
+  descExpanded = false;
   setPageTitle(video.title);
 
   // Configura o player de mídia
@@ -907,11 +918,32 @@ function appendLinkedText(container, text) {
   if (text && last < text.length) container.append(text.slice(last));
 }
 
+// Descrição recolhida em poucas linhas, com "Ver mais" / "Ver menos" (o botão só aparece se o texto
+// não couber recolhido). Medir exige o player visível, por isso também roda quando ele muda de tamanho.
+let descExpanded = false;
+let descOverflows = false;
+
+function syncDescriptionToggle() {
+  if (!descExpanded) descOverflows = playerDescription.scrollHeight > playerDescription.clientHeight + 1;
+  playerDescription.classList.toggle("expanded", descExpanded);
+  descToggleBtn.classList.toggle("hidden", !(descOverflows || descExpanded));
+  descToggleBtn.textContent = t(descExpanded ? "Ver menos" : "Ver mais");
+  descToggleBtn.setAttribute("aria-expanded", String(descExpanded));
+}
+
 function renderDescription(text) {
   playerDescription.textContent = "";
   playerDescription.classList.toggle("hidden", !text);
   appendLinkedText(playerDescription, text);
+  syncDescriptionToggle();
+  requestAnimationFrame(syncDescriptionToggle);
 }
+
+descToggleBtn.addEventListener("click", () => {
+  descExpanded = !descExpanded;
+  syncDescriptionToggle();
+});
+if (window.ResizeObserver) new ResizeObserver(syncDescriptionToggle).observe(playerDescription);
 
 // =========================================================
 // Comentários (somente leitura)
@@ -994,11 +1026,11 @@ async function fetchComments(path) {
   return data;
 }
 
-async function fetchApiCommentsPage(videoId, cursor) {
+async function fetchApiCommentsPage(videoId, cursor, bases) {
   const path = cursor
     ? `/api/comments/${encodeURIComponent(videoId)}?token=${encodeURIComponent(cursor.token)}`
     : `/api/comments/${encodeURIComponent(videoId)}`;
-  const { data, base } = await fetchApiJson(path, cursor && cursor.base);
+  const { data, base } = await fetchApiJson(path, cursor && cursor.base, bases);
   return {
     disabled: !!data.disabled,
     total: data.total ? String(data.total) : null,
@@ -1021,15 +1053,20 @@ async function fetchPipedCommentsPage(videoId, cursor) {
 }
 
 // Cursor de continuação: { src: "api" | "piped", token, base? } (null = primeira página).
-// A primeira página tenta o Piped e, se falhar, a API própria; as seguintes seguem a mesma fonte.
+// A primeira página tenta a VPS, depois o Piped e por fim a API reserva; as seguintes seguem a mesma fonte.
 async function fetchCommentsPage(videoId, cursor) {
   if (cursor && cursor.src === "api") return fetchApiCommentsPage(videoId, cursor);
-  try {
-    return await fetchPipedCommentsPage(videoId, cursor);
-  } catch (err) {
-    if (cursor || !API_BASES.length) throw err;
+  if (cursor) return fetchPipedCommentsPage(videoId, cursor);
+
+  let lastError;
+  if (API_BASES.length) {
+    try { return await fetchApiCommentsPage(videoId, null, API_BASES); } catch (err) { lastError = err; }
   }
-  return fetchApiCommentsPage(videoId, null);
+  try {
+    return await fetchPipedCommentsPage(videoId, null);
+  } catch (err) { lastError = err; }
+  if (API_LATE.length) return fetchApiCommentsPage(videoId, null, API_LATE);
+  throw lastError;
 }
 
 async function fetchRepliesPage(videoId, cursor) {
