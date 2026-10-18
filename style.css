@@ -1179,12 +1179,17 @@ body.modal-open {
   width: 100%;
   max-width: 420px;
   max-height: min(86vh, 640px);
+  overflow-y: auto;          /* janelas altas (configurações) rolam em telas baixas */
   padding: 16px 18px 18px;
   background-color: var(--bg-surface);
   color: var(--text-primary);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+}
+
+.modal-card > * {
+  flex-shrink: 0;
 }
 
 .modal-header {
@@ -1947,4 +1952,14 @@ body.modal-open .toast {
 @media (max-width: 640px) {
   .channel-head-avatar { width: 72px; height: 72px; font-size: 1.8rem; }
   .channel-head-name { font-size: 1.3rem; }
+}
+
+/* Botão de ação destrutiva (limpar dados) */
+.action-btn.danger-btn {
+  color: var(--cor_primaria);
+}
+
+.action-btn.danger-btn:hover {
+  background-color: var(--cor_primaria);
+  color: #ffffff;
 }

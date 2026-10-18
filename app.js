@@ -255,6 +255,9 @@ const subscribeBtn = document.getElementById("subscribeBtn");
 const subsSummary = document.getElementById("subsSummary");
 const exportSubsBtn = document.getElementById("exportSubsBtn");
 const importSubsBtn = document.getElementById("importSubsBtn");
+const exportAllBtn = document.getElementById("exportAllBtn");
+const importAllBtn = document.getElementById("importAllBtn");
+const clearDataBtn = document.getElementById("clearDataBtn");
 const playlistPage = document.getElementById("playlistPage");
 const renameModal = document.getElementById("renameModal");
 const renameForm = document.getElementById("renameForm");
@@ -1446,7 +1449,7 @@ function openVideoFromResults(video) {
 
 // Busca
 // =========================================================
-// Pesquisas recentes: até 10, guardadas no navegador (localStorage), com "x" para remover
+// Pesquisas recentes: até 10, guardadas localmente (localStorage), com "x" para remover
 // =========================================================
 const RECENT_KEY = "hootube.pesquisasRecentes";
 const RECENT_MAX = 10;
@@ -1677,7 +1680,7 @@ loadMoreCommentsBtn.addEventListener("click", loadMoreComments);
 // Reset Search
 resetSearchBtn.addEventListener("click", goHome);
 
-// Tema (escuro / claro): a escolha fica guardada no navegador
+// Tema (escuro / claro): a escolha fica guardada localmente
 const THEME_KEY = "hootube.tema";
 const THEME_ICON_DARK = `<path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-3.03 0-5.5-2.47-5.5-5.5 0-1.82.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z"/>`;
 const THEME_ICON_LIGHT = `<path d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58c-.39-.39-1.03-.39-1.41 0s-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41L5.99 4.58zm12.37 12.37c-.39-.39-1.03-.39-1.41 0s-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41l-1.06-1.06zm1.06-10.96c.39-.39.39-1.03 0-1.41s-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06zM7.05 18.36c.39-.39.39-1.03 0-1.41s-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06z"/>`;
@@ -1703,7 +1706,7 @@ themeToggleBtn.addEventListener("click", () => {
 window.addEventListener("popstate", applyRoute);
 
 // =========================================================
-// Playlists: guardadas no navegador (localStorage), mostradas na tela inicial
+// Playlists: guardadas localmente (localStorage), mostradas na tela inicial
 //   playlist = { id, name, createdAt, videos: [{ id, title, channel, duration, savedAt }] }
 // =========================================================
 const PLAYLISTS_KEY = "hootube.playlists";
@@ -1769,7 +1772,7 @@ function persistPlaylists(list) {
   try {
     localStorage.setItem(PLAYLISTS_KEY, JSON.stringify(list));
   } catch (err) {
-    showToast(t("Não foi possível guardar as playlists neste navegador."));
+    showToast(t("Não foi possível guardar as playlists localmente."));
   }
 }
 
@@ -1874,7 +1877,7 @@ function duplicatePlaylist(playlistId) {
 
 const countLabel = (n, one, many) => `${n.toLocaleString(window.HOOTUBE_LOCALE)} ${t(n === 1 ? one : many)}`;
 
-// ---- Inscrições: lista de canais guardada no navegador (como as playlists) ----------------
+// ---- Inscrições: lista de canais guardada localmente (como as playlists) ----------------
 const SUBS_KEY = "hootube.inscricoes";
 const SUBS_MAX = 500;
 let subsMemory = [];
@@ -1907,7 +1910,7 @@ function persistSubscriptions(list) {
   try {
     localStorage.setItem(SUBS_KEY, JSON.stringify(list));
   } catch (err) {
-    showToast(t("Não foi possível guardar as inscrições neste navegador."));
+    showToast(t("Não foi possível guardar as inscrições localmente."));
   }
 }
 
@@ -2803,6 +2806,18 @@ exportSubsBtn.addEventListener("click", () => {
 let importKind = "playlists";
 importBtn.addEventListener("click", () => { importKind = "playlists"; importFile.click(); });
 importSubsBtn.addEventListener("click", () => { importKind = "subscriptions"; importFile.click(); });
+importAllBtn.addEventListener("click", () => { importKind = "all"; importFile.click(); });
+
+// Backup completo: playlists, inscrições e configurações (tema e pesquisas recentes)
+exportAllBtn.addEventListener("click", () => {
+  downloadJson({
+    app: "HooTube", type: "backup", version: 1, exportedAt: new Date().toISOString(),
+    playlists: loadPlaylists(),
+    subscriptions: loadSubscriptions(),
+    settings: { theme: state.isDarkTheme ? "escuro" : "claro", recentSearches: loadRecent() }
+  }, `hootube-backup-${today()}.json`);
+  showToast(t("Backup completo exportado."));
+});
 
 // Soma as playlists do arquivo às existentes (mesmo id ou mesmo nome = junta os vídeos)
 function mergePlaylists(current, incoming) {
@@ -2839,55 +2854,133 @@ function mergeSubscriptions(current, incoming) {
   return { result, added };
 }
 
+// Soma as inscrições do arquivo às existentes (sem duplicar o mesmo canal)
+function mergeSubscriptions(current, incoming) {
+  const result = [...current];
+  let added = 0;
+  incoming.forEach(item => {
+    if (result.length >= SUBS_MAX || findSubscription(result, item)) return;
+    result.push(item);
+    added++;
+  });
+  return { result, added };
+}
+
+// Cada importar* devolve o texto do que entrou de novo ("" se nada) ou null se não havia dados válidos
+function importSubscriptionsData(raw) {
+  const incoming = (Array.isArray(raw) ? raw : []).map(sanitizeSubscription).filter(Boolean);
+  if (!incoming.length) return null;
+  const { result, added } = mergeSubscriptions(loadSubscriptions(), incoming);
+  if (added) persistSubscriptions(result);
+  return added ? countLabel(added, "inscrição nova", "inscrições novas") : "";
+}
+
+function importPlaylistsData(raw) {
+  const incoming = (Array.isArray(raw) ? raw : []).map(sanitizePlaylist).filter(Boolean);
+  if (!incoming.length) return null;
+  const { result, newPlaylists, newVideos } = mergePlaylists(loadPlaylists(), incoming);
+  if (!newPlaylists && !newVideos) return "";
+  persistPlaylists(result);
+  return t("{a} e {b}", { a: countLabel(newPlaylists, "playlist nova", "playlists novas"), b: countLabel(newVideos, "vídeo novo", "vídeos novos") });
+}
+
+// Tema e pesquisas recentes do backup; devolve true se algo mudou
+function importSettingsData(settings) {
+  if (!settings || typeof settings !== "object") return null;
+  let changed = false;
+  if (settings.theme === "claro" || settings.theme === "escuro") {
+    const dark = settings.theme === "escuro";
+    if (dark !== state.isDarkTheme) {
+      applyTheme(dark);
+      try { localStorage.setItem(THEME_KEY, settings.theme); } catch (err) { /* sem espaço ou bloqueado */ }
+      changed = true;
+    }
+  }
+  if (Array.isArray(settings.recentSearches)) {
+    const current = loadRecent();
+    const seen = new Set(current.map(x => x.toLowerCase()));
+    const extra = settings.recentSearches
+      .filter(x => typeof x === "string" && x.trim() && !seen.has(x.trim().toLowerCase()) && seen.add(x.trim().toLowerCase()))
+      .map(x => cleanText(x, 200));
+    if (extra.length && current.length < RECENT_MAX) {
+      storeRecent([...current, ...extra].slice(0, RECENT_MAX));
+      changed = true;
+    }
+  }
+  return changed;
+}
+
 importFile.addEventListener("change", async () => {
   const file = importFile.files[0];
   importFile.value = ""; // permite escolher o mesmo arquivo de novo
   if (!file) return;
   const kind = importKind;
-  const label = t(kind === "subscriptions" ? "inscrições" : "playlists");
+  const label = t(kind === "subscriptions" ? "inscrições" : kind === "all" ? "backup completo" : "playlists");
   if (file.size > IMPORT_MAX_BYTES) {
     showToast(t("Arquivo grande demais para ser um backup de {label}.", { label }));
     return;
   }
-  let raw;
+
+  let data;
   try {
-    const data = JSON.parse(await file.text());
-    if (data && !Array.isArray(data) && data.type && data.type !== kind) {
-      showToast(t("Este arquivo é de {other}. Use \"Importar {label}\" com o arquivo certo.", { other: t(data.type === "subscriptions" ? "inscrições" : "playlists"), label }));
-      return;
-    }
-    raw = Array.isArray(data) ? data : data && data[kind];
-    if (!Array.isArray(raw)) throw new Error("formato");
+    data = JSON.parse(await file.text());
   } catch (err) {
     showToast(t("Arquivo inválido: não é um backup de {label} do HooTube.", { label }));
     return;
   }
-
-  if (kind === "subscriptions") {
-    const incoming = raw.map(sanitizeSubscription).filter(Boolean);
-    if (!incoming.length) { showToast(t("Nenhuma inscrição válida encontrada no arquivo.")); return; }
-    const { result, added } = mergeSubscriptions(loadSubscriptions(), incoming);
-    persistSubscriptions(result);
-    refreshSettingsSummary();
-    updateSubscribeButton(state.currentVideo);
-    if (isHomeVisible()) renderHomeContent();
-    showToast(added ? t("Importado: {what}.", { what: countLabel(added, "inscrição nova", "inscrições novas") }) : t("Nada novo para importar: tudo já estava salvo."));
+  const isObject = data && typeof data === "object" && !Array.isArray(data);
+  // Lista solta = formato antigo de playlists
+  const sections = isObject ? data : { playlists: data };
+  if (isObject && kind !== "all" && data.type && data.type !== "backup" && data.type !== kind) {
+    showToast(t("Este arquivo é de {other}. Use \"Importar {label}\" com o arquivo certo.", { other: t(data.type === "subscriptions" ? "inscrições" : "playlists"), label }));
     return;
   }
 
-  const incoming = raw.map(sanitizePlaylist).filter(Boolean);
-  if (!incoming.length) {
-    showToast(t("Nenhuma playlist válida encontrada no arquivo."));
+  const parts = [];
+  let valid = false;
+  if (kind === "all" || kind === "playlists") {
+    const r = importPlaylistsData(sections.playlists);
+    if (r !== null) { valid = true; if (r) parts.push(r); }
+  }
+  if (kind === "all" || kind === "subscriptions") {
+    const r = importSubscriptionsData(sections.subscriptions);
+    if (r !== null) { valid = true; if (r) parts.push(r); }
+  }
+  if (kind === "all") {
+    const r = importSettingsData(sections.settings);
+    if (r !== null) { valid = true; if (r) parts.push(t("configurações")); }
+  }
+  if (!valid) {
+    showToast(kind === "all" ? t("Arquivo inválido: não é um backup do HooTube.")
+      : kind === "subscriptions" ? t("Nenhuma inscrição válida encontrada no arquivo.")
+      : t("Nenhuma playlist válida encontrada no arquivo."));
     return;
   }
-  const { result, newPlaylists, newVideos } = mergePlaylists(loadPlaylists(), incoming);
-  persistPlaylists(result);
+
   refreshSettingsSummary();
   refreshSaveStates();
-  refreshPlaylistViews();
-  showToast(newPlaylists || newVideos
-    ? t("Importado: {what}.", { what: t("{a} e {b}", { a: countLabel(newPlaylists, "playlist nova", "playlists novas"), b: countLabel(newVideos, "vídeo novo", "vídeos novos") }) })
-    : t("Nada novo para importar: tudo já estava salvo."));
+  updateSubscribeButton(state.currentVideo);
+  if (isHomeVisible()) renderHomeContent(); else refreshPlaylistViews();
+  showToast(parts.length ? t("Importado: {what}.", { what: parts.join(", ") }) : t("Nada novo para importar: tudo já estava salvo."));
+});
+
+// Limpar dados: apaga tudo o que o HooTube guardou localmente (chaves "hootube.*")
+clearDataBtn.addEventListener("click", () => {
+  if (!confirm(t("Apagar todas as playlists, inscrições, pesquisas recentes e o tema guardados neste aparelho? Isso não pode ser desfeito."))) return;
+  try {
+    Object.keys(localStorage).filter(k => k.startsWith("hootube.")).forEach(k => localStorage.removeItem(k));
+  } catch (err) { /* localStorage indisponível: só limpa a memória */ }
+  playlistsMemory = [];
+  subsMemory = [];
+  recentMemory = [];
+  applyTheme(true);
+  hideRecent();
+  closePlaylistMenu(false);
+  refreshSettingsSummary();
+  refreshSaveStates();
+  updateSubscribeButton(state.currentVideo);
+  if (isHomeVisible()) renderHomeContent(); else refreshPlaylistViews();
+  showToast(t("Dados apagados."));
 });
 
 // Favicon na cor primária (--cor_primaria em style.css); o do index.html é só reserva

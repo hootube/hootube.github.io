@@ -64,8 +64,8 @@
     "Criar": "Create",
     "Renomear playlist": "Rename playlist",
     "Novo nome da playlist": "New playlist name",
-    "Tudo fica só neste navegador. Exporte para guardar um backup ou levar para outro aparelho; ao importar, o conteúdo do arquivo é somado ao que você já tem.":
-      "Everything stays in this browser only. Export to keep a backup or move to another device; when importing, the file's content is added to what you already have.",
+    "Tudo fica guardado de forma local, neste aparelho. Exporte para guardar um backup ou levar para outro aparelho; ao importar, o conteúdo do arquivo é somado ao que você já tem.":
+      "Everything is stored locally, on this device only. Export to keep a backup or move to another device; when importing, the file's content is added to what you already have.",
     "Inscrições": "Subscriptions",
     "Playlists": "Playlists",
     "Exportar inscrições": "Export subscriptions",
@@ -118,7 +118,7 @@
     "Tema escuro ativado": "Dark theme on",
     "Tema claro ativado": "Light theme on",
     // ---- playlists
-    "Não foi possível guardar as playlists neste navegador.": "Could not save the playlists in this browser.",
+    "Não foi possível guardar as playlists localmente.": "Could not save the playlists locally.",
     "Limite de {n} playlists atingido.": "Limit of {n} playlists reached.",
     "Esta playlist já tem {n} vídeos.": "This playlist already has {n} videos.",
     "(cópia)": "(copy)",
@@ -142,7 +142,7 @@
     "Você ainda não tem playlists. Crie a primeira abaixo.": "You don't have any playlists yet. Create the first one below.",
     "Salvo em “{name}”.": "Saved to “{name}”.",
     // ---- inscrições
-    "Não foi possível guardar as inscrições neste navegador.": "Could not save the subscriptions in this browser.",
+    "Não foi possível guardar as inscrições localmente.": "Could not save the subscriptions locally.",
     "Inscrição em {name} cancelada.": "Unsubscribed from {name}.",
     "Limite de inscrições atingido.": "Subscription limit reached.",
     "Inscrito em {name}.": "Subscribed to {name}.",
@@ -176,6 +176,18 @@
     "Não foi possível carregar o canal.": "Could not load the channel.",
     "Este canal não tem vídeos para mostrar.": "This channel has no videos to show.",
     "resultado": "result", "resultados": "results",
+    "Backup completo": "Full backup",
+    "Playlists, inscrições e configurações (tema e pesquisas recentes) num arquivo só.": "Playlists, subscriptions and settings (theme and recent searches) in a single file.",
+    "Exportar tudo": "Export everything",
+    "Importar tudo": "Import everything",
+    "Backup completo exportado.": "Full backup exported.",
+    "backup completo": "full backup",
+    "configurações": "settings",
+    "Arquivo inválido: não é um backup do HooTube.": "Invalid file: not a HooTube backup.",
+    "Limpar dados": "Clear data",
+    "Apaga as playlists, as inscrições, as pesquisas recentes e o tema guardados neste aparelho. Exporte um backup antes se quiser poder recuperar.": "Deletes the playlists, subscriptions, recent searches and theme stored on this device. Export a backup first if you want to be able to recover them.",
+    "Apagar todas as playlists, inscrições, pesquisas recentes e o tema guardados neste aparelho? Isso não pode ser desfeito.": "Delete all playlists, subscriptions, recent searches and the theme stored on this device? This cannot be undone.",
+    "Dados apagados.": "Data deleted.",
     // ---- player (rótulos)
     "Abrir no YouTube": "Open on YouTube"
   };
@@ -218,8 +230,8 @@
     "Criar": "Crear",
     "Renomear playlist": "Renombrar lista",
     "Novo nome da playlist": "Nuevo nombre de la lista",
-    "Tudo fica só neste navegador. Exporte para guardar um backup ou levar para outro aparelho; ao importar, o conteúdo do arquivo é somado ao que você já tem.":
-      "Todo se queda solo en este navegador. Exporta para guardar una copia o llevarla a otro dispositivo; al importar, el contenido del archivo se suma a lo que ya tienes.",
+    "Tudo fica guardado de forma local, neste aparelho. Exporte para guardar um backup ou levar para outro aparelho; ao importar, o conteúdo do arquivo é somado ao que você já tem.":
+      "Todo se guarda de forma local, solo en este dispositivo. Exporta para guardar una copia o llevarla a otro dispositivo; al importar, el contenido del archivo se suma a lo que ya tienes.",
     "Inscrições": "Suscripciones",
     "Playlists": "Listas",
     "Exportar inscrições": "Exportar suscripciones",
@@ -270,7 +282,7 @@
     "Link copiado: {url}": "Enlace copiado: {url}",
     "Tema escuro ativado": "Tema oscuro activado",
     "Tema claro ativado": "Tema claro activado",
-    "Não foi possível guardar as playlists neste navegador.": "No se pudieron guardar las listas en este navegador.",
+    "Não foi possível guardar as playlists localmente.": "No se pudieron guardar las listas de forma local.",
     "Limite de {n} playlists atingido.": "Se alcanzó el límite de {n} listas.",
     "Esta playlist já tem {n} vídeos.": "Esta lista ya tiene {n} videos.",
     "(cópia)": "(copia)",
@@ -293,7 +305,7 @@
     "Playlist renomeada.": "Lista renombrada.",
     "Você ainda não tem playlists. Crie a primeira abaixo.": "Aún no tienes listas. Crea la primera abajo.",
     "Salvo em “{name}”.": "Guardado en “{name}”.",
-    "Não foi possível guardar as inscrições neste navegador.": "No se pudieron guardar las suscripciones en este navegador.",
+    "Não foi possível guardar as inscrições localmente.": "No se pudieron guardar las suscripciones de forma local.",
     "Inscrição em {name} cancelada.": "Suscripción a {name} cancelada.",
     "Limite de inscrições atingido.": "Se alcanzó el límite de suscripciones.",
     "Inscrito em {name}.": "Suscrito a {name}.",
@@ -326,6 +338,18 @@
     "Não foi possível carregar o canal.": "No se pudo cargar el canal.",
     "Este canal não tem vídeos para mostrar.": "Este canal no tiene videos para mostrar.",
     "resultado": "resultado", "resultados": "resultados",
+    "Backup completo": "Copia completa",
+    "Playlists, inscrições e configurações (tema e pesquisas recentes) num arquivo só.": "Listas, suscripciones y ajustes (tema y búsquedas recientes) en un solo archivo.",
+    "Exportar tudo": "Exportar todo",
+    "Importar tudo": "Importar todo",
+    "Backup completo exportado.": "Copia completa exportada.",
+    "backup completo": "copia completa",
+    "configurações": "ajustes",
+    "Arquivo inválido: não é um backup do HooTube.": "Archivo no válido: no es una copia de HooTube.",
+    "Limpar dados": "Borrar datos",
+    "Apaga as playlists, as inscrições, as pesquisas recentes e o tema guardados neste aparelho. Exporte um backup antes se quiser poder recuperar.": "Borra las listas, las suscripciones, las búsquedas recientes y el tema guardados en este dispositivo. Exporta una copia antes si quieres poder recuperarlos.",
+    "Apagar todas as playlists, inscrições, pesquisas recentes e o tema guardados neste aparelho? Isso não pode ser desfeito.": "¿Borrar todas las listas, suscripciones, búsquedas recientes y el tema guardados en este dispositivo? Esto no se puede deshacer.",
+    "Dados apagados.": "Datos borrados.",
     "Abrir no YouTube": "Abrir en YouTube"
   };
 
