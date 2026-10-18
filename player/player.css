@@ -188,6 +188,13 @@
     margin-top: 4px !important;
   }
 
+  /* O contêiner do volume tem flex:1 e ocupava espaço mesmo sem o controle de volume (escondido
+     aqui): o tempo ficava no meio da barra. Agora ele só ocupa o botão de mudo e o tempo cola nele. */
+  .hoo-player .plyr__controls > .plyr__volume {
+    flex: 0 0 auto !important;
+    width: auto !important;
+  }
+
   .hoo-player .plyr__controls > .plyr__time--current {
     margin-left: clamp(2px, 1.5cqw, 8px) !important;
     font-size: clamp(11px, 3.4cqw, 14px) !important;

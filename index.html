@@ -72,6 +72,9 @@
           <path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-3.03 0-5.5-2.47-5.5-5.5 0-1.82.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z"/>
         </svg>
       </button>
+      <button class="icon-btn" id="settingsBtn" title="Configurações" aria-label="Configurações" aria-haspopup="dialog">
+        <svg viewBox="0 0 24 24" class="icon"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+      </button>
     </div>
   </header>
 
@@ -90,6 +93,12 @@
         </div>
         <h2 class="empty-feed-title">Feed vazio... Pesquise algo para iniciar!</h2>
       </div>
+
+      <!-- Vitrine das playlists salvas (tela inicial) -->
+      <section class="playlists-home hidden" id="playlistsHome" aria-label="Playlists salvas"></section>
+
+      <!-- Página de uma playlist (?playlist=ID) -->
+      <section class="playlist-page hidden" id="playlistPage" aria-label="Playlist"></section>
 
       <div class="results-header hidden" id="resultsHeader">
         <h2 class="results-title" id="resultsHeading">Resultados</h2>
@@ -153,6 +162,11 @@
                   <span>Compartilhar</span>
                 </button>
 
+                <button class="pill-btn save-btn" id="saveBtn" aria-haspopup="dialog" aria-pressed="false">
+                  <svg viewBox="0 0 24 24" class="icon" id="saveIcon"><path d="M14 10H2v2h12v-2zm0-4H2v2h12V6zm4 8v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zM2 16h8v-2H2v2z"/></svg>
+                  <span id="saveLabel">Salvar</span>
+                </button>
+
               </div>
             </div>
 
@@ -192,6 +206,63 @@
   <footer class="footer">
     <p><span id="currentYear">2026</span> Hootube</p>
   </footer>
+
+  <!-- Janela: salvar o vídeo em playlists -->
+  <div class="modal hidden" id="saveModal" role="dialog" aria-modal="true" aria-labelledby="saveModalTitle">
+    <div class="modal-backdrop" data-close></div>
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 id="saveModalTitle">Salvar em…</h2>
+        <button type="button" class="icon-btn" data-close aria-label="Fechar">
+          <svg viewBox="0 0 24 24" class="icon"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </div>
+      <p class="modal-text muted modal-video" id="saveModalVideo"></p>
+      <ul class="playlist-picker" id="playlistPicker"></ul>
+      <form class="playlist-new" id="playlistNewForm" autocomplete="off">
+        <input type="text" id="playlistNewName" maxlength="60" placeholder="Nova playlist…" aria-label="Nome da nova playlist">
+        <button type="submit" class="action-btn">Criar</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Janela: renomear playlist -->
+  <div class="modal hidden" id="renameModal" role="dialog" aria-modal="true" aria-labelledby="renameModalTitle">
+    <div class="modal-backdrop" data-close></div>
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 id="renameModalTitle">Renomear playlist</h2>
+        <button type="button" class="icon-btn" data-close aria-label="Fechar">
+          <svg viewBox="0 0 24 24" class="icon"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </div>
+      <form class="rename-form" id="renameForm" autocomplete="off">
+        <input type="text" id="renameInput" maxlength="60" aria-label="Novo nome da playlist">
+        <button type="submit" class="action-btn">Salvar</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Janela: configurações -->
+  <div class="modal hidden" id="settingsModal" role="dialog" aria-modal="true" aria-labelledby="settingsModalTitle">
+    <div class="modal-backdrop" data-close></div>
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 id="settingsModalTitle">Configurações</h2>
+        <button type="button" class="icon-btn" data-close aria-label="Fechar">
+          <svg viewBox="0 0 24 24" class="icon"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </div>
+      <h3 class="modal-section">Playlists</h3>
+      <p class="modal-text" id="settingsSummary"></p>
+      <p class="modal-text muted">Elas ficam só neste navegador. Exporte para guardar um backup ou levar para outro aparelho; ao importar, as playlists do arquivo são somadas às que você já tem.</p>
+      <div class="modal-actions">
+        <button type="button" class="action-btn" id="exportBtn">Exportar playlists</button>
+        <button type="button" class="action-btn" id="importBtn">Importar playlists</button>
+        <input type="file" id="importFile" accept="application/json,.json" hidden>
+      </div>
+    </div>
+  </div>
 
   <!-- Toast Notification -->
   <div class="toast hidden" id="toast">Link copiado para a área de transferência!</div>

@@ -162,6 +162,7 @@ const OWN_KEYS = 'button, a, summary, [role="button"], [role="menuitem"], [role=
 function setupKeyboardShortcuts(player, container) {
   const onKeyDown = event => {
     if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
+    if (document.querySelector(".modal:not(.hidden)")) return; // janela aberta (salvar, configurações)
     const target = event.target instanceof Element ? event.target : document.body;
     if (target.closest(INTERACTIVE)) return; // digitando na busca ou nos comentários
 

@@ -233,12 +233,35 @@ const commentsList = document.getElementById("commentsList");
 const loadMoreCommentsBtn = document.getElementById("loadMoreCommentsBtn");
 const toast = document.getElementById("toast");
 const themeToggleBtn = document.getElementById("themeToggleBtn");
+const settingsBtn = document.getElementById("settingsBtn");
+const saveBtn = document.getElementById("saveBtn");
+const saveIcon = document.getElementById("saveIcon");
+const saveLabel = document.getElementById("saveLabel");
+const saveModal = document.getElementById("saveModal");
+const settingsModal = document.getElementById("settingsModal");
+const playlistPicker = document.getElementById("playlistPicker");
+const saveModalVideo = document.getElementById("saveModalVideo");
+const playlistNewForm = document.getElementById("playlistNewForm");
+const playlistNewName = document.getElementById("playlistNewName");
+const settingsSummary = document.getElementById("settingsSummary");
+const exportBtn = document.getElementById("exportBtn");
+const importBtn = document.getElementById("importBtn");
+const importFile = document.getElementById("importFile");
+const playlistsHome = document.getElementById("playlistsHome");
+const playlistPage = document.getElementById("playlistPage");
+const renameModal = document.getElementById("renameModal");
+const renameForm = document.getElementById("renameForm");
+const renameInput = document.getElementById("renameInput");
 
 // Utilitários
+let toastTimer = 0;
+
 function showToast(message) {
   toast.textContent = message;
   toast.classList.remove("hidden");
-  setTimeout(() => {
+  // Cancela o temporizador do aviso anterior, senão ele esconderia este antes da hora
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
     toast.classList.add("hidden");
   }, 3000);
 }
@@ -498,6 +521,20 @@ function localizeTitle(video, card) {
 // =========================================================
 // Renderização dos Resultados de Pesquisa
 // =========================================================
+// Ícone no canto superior direito do resultado: salva em uma playlist sem abrir o vídeo
+function createCardSaveButton(video, savedIds) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "card-save-btn";
+  button.dataset.id = video.youtubeId;
+  button.setAttribute("aria-haspopup", "dialog");
+  button.setAttribute("aria-label", `Salvar “${video.title}” em uma playlist`);
+  button.insertAdjacentHTML("beforeend", `<svg viewBox="0 0 24 24" class="icon" aria-hidden="true"><path d="${ICON_PLAYLIST_ADD}"/></svg>`);
+  setCardSaveState(button, savedIds.has(video.youtubeId));
+  button.addEventListener("click", () => openSaveModal(video));
+  return button;
+}
+
 function renderResults(videos) {
   resultsContainer.innerHTML = "";
 
@@ -509,6 +546,7 @@ function renderResults(videos) {
 
   emptyState.classList.add("hidden");
   resultsCount.textContent = `${videos.length} resultado${videos.length > 1 ? "s" : ""}`;
+  const savedIds = savedVideoIds();
 
   videos.forEach(video => {
     // Link de verdade (abre em nova guia com Ctrl/Cmd+clique, botão do meio ou menu de contexto)
@@ -545,7 +583,11 @@ function renderResults(videos) {
       openVideoFromResults(video);
     });
 
-    resultsContainer.appendChild(card);
+    // O botão de salvar fica ao lado do link (um botão não pode ficar dentro de um <a>)
+    const wrap = document.createElement("div");
+    wrap.className = "video-card-wrap";
+    wrap.append(card, createCardSaveButton(video, savedIds));
+    resultsContainer.appendChild(wrap);
     localizeTitle(video, card);
   });
 }
@@ -708,6 +750,32 @@ function applyVideoDetails(video, d) {
   if (d.channelAvatar) video.channelAvatar = d.channelAvatar;
 }
 
+// Vídeo aberto por link direto (?v=) ou por uma playlist não passou por uma busca, então faltam a
+// foto do canal, as views, a data e a descrição. O Piped tem tudo isso nos resultados de busca:
+// pesquisa pelo título (que o oEmbed já deu) e pega o resultado que tem o mesmo id.
+async function enrichFromSearch(video) {
+  if (!video.youtubeId || video.channelAvatar || video.fromApi || video.searchEnriched) return;
+  video.searchEnriched = true;
+  const queries = [video.title, `${video.title} ${video.channel}`]
+    .filter(q => q && !q.startsWith("Vídeo do YouTube ("))
+    .map(q => q.trim().slice(0, 150));
+
+  for (const query of queries) {
+    try {
+      const page = await fetchPipedPage(`/search?q=${encodeURIComponent(query)}&filter=videos`);
+      const found = page.items.find(v => v.youtubeId === video.youtubeId);
+      if (!found) continue;
+      video.channelAvatar = video.channelAvatar || found.channelAvatar;
+      video.views = video.views || found.views;
+      video.date = video.date || found.date;
+      video.description = video.description || found.description;
+      video.duration = video.duration || found.duration;
+      videoCache.set(video.youtubeId, video); // a busca guardou o objeto dela; mantém o do player
+      return;
+    } catch (err) { /* tenta a próxima consulta */ }
+  }
+}
+
 async function enrichPlayer(video) {
   // Detalhes completos só existem na API própria: busca-os apenas se o vídeo veio dela
   // (com o Piped como fonte principal, a descrição é o trecho curto que ele entrega).
@@ -721,6 +789,10 @@ async function enrichPlayer(video) {
   if (state.currentVideo !== video) return;
   fillPlayerMetadata(video);
   setPageTitle(video.title);
+
+  await enrichFromSearch(video);
+  if (state.currentVideo !== video) return;
+  fillPlayerMetadata(video);
 }
 
 // Player (Vidstack + Plyr) carregado sob demanda; se falhar, usa o iframe/<video> simples
@@ -780,6 +852,8 @@ function openVideoPlayer(video) {
 
   // Detalhes completos (API própria) ou, sem ela, título no idioma original via oEmbed
   if (video.youtubeId) enrichPlayer(video);
+
+  updateSaveButton();
 
   // Carrega comentários
   loadComments(video);
@@ -1174,7 +1248,7 @@ function showInitialFeed() {
   clearPlayer();
   playerView.classList.add("hidden");
   resultsView.classList.remove("hidden");
-  initialFeedState.classList.remove("hidden");
+  renderHomeContent();
   resultsHeader.classList.add("hidden");
   resultsContainer.classList.add("hidden");
   emptyState.classList.add("hidden");
@@ -1189,6 +1263,8 @@ function showResultsLayout() {
   playerView.classList.add("hidden");
   resultsView.classList.remove("hidden");
   initialFeedState.classList.add("hidden");
+  playlistsHome.classList.add("hidden");
+  playlistPage.classList.add("hidden");
   state.currentVideo = null;
 }
 
@@ -1203,10 +1279,12 @@ function setPageTitle(text) {
   document.title = text ? `${text} - HooTube` : "HooTube";
 }
 
-function buildUrl({ q = "", p = 1, v = "" } = {}) {
+function buildUrl({ q = "", p = 1, v = "", pl = "" } = {}) {
   const params = new URLSearchParams();
   if (v) {
     params.set("v", v);
+  } else if (pl) {
+    params.set("playlist", pl);
   } else if (q) {
     params.set("q", q);
     if (p > 1) params.set("p", String(p));
@@ -1221,7 +1299,8 @@ function readRoute() {
   return {
     q: (params.get("q") || "").trim(),
     p: page > 0 ? page : 1,
-    v: (params.get("v") || "").trim()
+    v: (params.get("v") || "").trim(),
+    pl: (params.get("playlist") || "").trim()
   };
 }
 
@@ -1289,8 +1368,10 @@ async function applyRoute() {
   const q = v ? (searchSession ? searchSession.query : "") : route.q;
   const p = v ? (searchSession ? searchSession.page : 1) : route.p;
 
-  searchInput.value = q;
-  clearSearchBtn.classList.toggle("hidden", !q);
+  // Ao abrir um vídeo a barra de busca é limpa; nas buscas ela mostra o termo
+  const shown = v ? "" : q;
+  searchInput.value = shown;
+  clearSearchBtn.classList.toggle("hidden", !shown);
   state.currentQuery = q;
   state.currentPage = p;
 
@@ -1304,7 +1385,14 @@ async function applyRoute() {
       return;
     }
     openVideoPlayer(video);
-    backToResultsBtn.classList.toggle("hidden", !(searchSession || (history.state && history.state.fromSearch)));
+    const origem = history.state || {};
+    backToResultsBtn.classList.toggle("hidden", !(origem.fromPlaylist || searchSession || origem.fromSearch));
+    backToResultsBtn.querySelector("span").textContent = origem.fromPlaylist ? "Voltar para a playlist" : "Voltar para a pesquisa";
+    return;
+  }
+
+  if (route.pl) {
+    showPlaylistPage(route.pl);
     return;
   }
 
@@ -1482,10 +1570,7 @@ searchForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   const term = searchInput.value.trim();
   hideRecent();
-  if (!term) {
-    goHome();
-    return;
-  }
+  if (!term) return; // campo vazio: não faz nada (o conteúdo na tela continua)
   // Link (ou ID) de vídeo colado vai direto para o player.
   // Um texto de 11 caracteres só conta como ID se o vídeo existir; senão é uma busca.
   const youtubeId = extractYouTubeId(term);
@@ -1499,17 +1584,15 @@ searchForm.addEventListener("submit", async (e) => {
   if (window.matchMedia("(pointer: coarse)").matches) searchInput.blur();
 });
 
+// Apagar o texto só esvazia o campo: os resultados (ou o vídeo) na tela não mudam
 searchInput.addEventListener("input", () => {
-  if (searchInput.value.trim().length > 0) {
-    clearSearchBtn.classList.remove("hidden");
-  } else {
-    goHome();
-  }
+  clearSearchBtn.classList.toggle("hidden", searchInput.value.trim().length === 0);
   renderRecent();
 });
 
 clearSearchBtn.addEventListener("click", () => {
-  goHome();
+  searchInput.value = "";
+  clearSearchBtn.classList.add("hidden");
   searchInput.focus();
   renderRecent();
 });
@@ -1529,7 +1612,7 @@ homeLogo.addEventListener("click", (e) => {
 
 // Voltar da página do player para a busca
 backToResultsBtn.addEventListener("click", () => {
-  if (history.state && history.state.fromSearch) {
+  if (history.state && (history.state.fromSearch || history.state.fromPlaylist)) {
     history.back();
   } else if (searchSession) {
     navigate({ q: searchSession.query, p: searchSession.page });
@@ -1581,6 +1664,775 @@ themeToggleBtn.addEventListener("click", () => {
 
 // Voltar / avançar / atualizar: a URL é a fonte da verdade
 window.addEventListener("popstate", applyRoute);
+
+// =========================================================
+// Playlists: guardadas no navegador (localStorage), mostradas na tela inicial
+//   playlist = { id, name, createdAt, videos: [{ id, title, channel, duration, savedAt }] }
+// =========================================================
+const PLAYLISTS_KEY = "hootube.playlists";
+const PLAYLIST_NAME_MAX = 60;
+const PLAYLISTS_MAX = 100;       // limites também protegem contra arquivos de importação absurdos
+const PLAYLIST_VIDEOS_MAX = 500;
+const IMPORT_MAX_BYTES = 2 * 1024 * 1024;
+let playlistsMemory = [];        // reserva caso o localStorage esteja bloqueado
+
+const TRASH_ICON = '<svg viewBox="0 0 24 24" class="icon" aria-hidden="true"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>';
+const ICON_PLAYLIST_ADD = "M14 10H2v2h12v-2zm0-4H2v2h12V6zm4 8v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zM2 16h8v-2H2v2z";
+const ICON_PLAYLIST_CHECK = "M14 10H2v2h12v-2zm0-4H2v2h12V6zM2 16h8v-2H2v2zm19.5-4.5L23 13l-6.99 7-4.51-4.5L13 14l3.01 3 5.49-5.5z";
+
+function cleanText(value, max = 200) {
+  return String(value ?? "").replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, max);
+}
+
+function newId() {
+  return (globalThis.crypto && crypto.randomUUID)
+    ? crypto.randomUUID()
+    : Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+}
+
+// Valida e normaliza (dados vindos do armazenamento ou de um arquivo importado nunca são confiáveis)
+function sanitizeVideoEntry(entry) {
+  const id = entry && typeof entry.id === "string" ? entry.id.trim() : "";
+  if (!YOUTUBE_ID_PATTERN.test(id)) return null;
+  return {
+    id,
+    title: cleanText(entry.title) || "Vídeo do YouTube",
+    channel: cleanText(entry.channel, 100),
+    duration: cleanText(entry.duration, 12),
+    savedAt: Number.isFinite(entry.savedAt) ? entry.savedAt : Date.now()
+  };
+}
+
+function sanitizePlaylist(item) {
+  const name = cleanText(item && item.name, PLAYLIST_NAME_MAX);
+  if (!name) return null;
+  const seen = new Set();
+  const videos = (Array.isArray(item.videos) ? item.videos : [])
+    .map(sanitizeVideoEntry)
+    .filter(v => v && !seen.has(v.id) && seen.add(v.id))
+    .slice(0, PLAYLIST_VIDEOS_MAX);
+  return {
+    id: cleanText(item.id, 64) || newId(),
+    name,
+    createdAt: Number.isFinite(item.createdAt) ? item.createdAt : Date.now(),
+    videos
+  };
+}
+
+function loadPlaylists() {
+  try {
+    const list = JSON.parse(localStorage.getItem(PLAYLISTS_KEY) || "[]");
+    if (Array.isArray(list)) return list.map(sanitizePlaylist).filter(Boolean).slice(0, PLAYLISTS_MAX);
+  } catch (err) { /* localStorage indisponível ou conteúdo inválido */ }
+  return playlistsMemory;
+}
+
+function persistPlaylists(list) {
+  playlistsMemory = list;
+  try {
+    localStorage.setItem(PLAYLISTS_KEY, JSON.stringify(list));
+  } catch (err) {
+    showToast("Não foi possível guardar as playlists neste navegador.");
+  }
+}
+
+function videoToEntry(video) {
+  return sanitizeVideoEntry({
+    id: video.youtubeId,
+    title: video.title,
+    channel: video.channel,
+    duration: video.duration,
+    savedAt: Date.now()
+  });
+}
+
+// Cria a playlist; se já existir uma com o mesmo nome (sem diferenciar maiúsculas), reaproveita
+function createPlaylist(name) {
+  const clean = cleanText(name, PLAYLIST_NAME_MAX);
+  if (!clean) return null;
+  const list = loadPlaylists();
+  const existing = list.find(p => p.name.toLowerCase() === clean.toLowerCase());
+  if (existing) return existing;
+  if (list.length >= PLAYLISTS_MAX) {
+    showToast(`Limite de ${PLAYLISTS_MAX} playlists atingido.`);
+    return null;
+  }
+  const playlist = { id: newId(), name: clean, createdAt: Date.now(), videos: [] };
+  list.push(playlist);
+  persistPlaylists(list);
+  return playlist;
+}
+
+function playlistsWithVideo(youtubeId) {
+  return loadPlaylists().filter(p => p.videos.some(v => v.id === youtubeId));
+}
+
+function setVideoInPlaylist(playlistId, video, present) {
+  const list = loadPlaylists();
+  const playlist = list.find(p => p.id === playlistId);
+  const entry = videoToEntry(video);
+  if (!playlist || !entry) return false;
+  const has = playlist.videos.some(v => v.id === entry.id);
+  if (present && !has) {
+    if (playlist.videos.length >= PLAYLIST_VIDEOS_MAX) {
+      showToast(`Esta playlist já tem ${PLAYLIST_VIDEOS_MAX} vídeos.`);
+      return false;
+    }
+    playlist.videos.push(entry);
+  }
+  if (!present && has) playlist.videos = playlist.videos.filter(v => v.id !== entry.id);
+  persistPlaylists(list);
+  return true;
+}
+
+function removeVideoFromPlaylist(playlistId, videoId) {
+  const list = loadPlaylists();
+  const playlist = list.find(p => p.id === playlistId);
+  if (!playlist) return;
+  playlist.videos = playlist.videos.filter(v => v.id !== videoId);
+  persistPlaylists(list);
+}
+
+function deletePlaylist(playlistId) {
+  persistPlaylists(loadPlaylists().filter(p => p.id !== playlistId));
+}
+
+// Renomeia; recusa nome vazio ou já usado por OUTRA playlist (sem diferenciar maiúsculas)
+function renamePlaylist(playlistId, rawName) {
+  const name = cleanText(rawName, PLAYLIST_NAME_MAX);
+  if (!name) return { ok: false, reason: "empty" };
+  const list = loadPlaylists();
+  const playlist = list.find(p => p.id === playlistId);
+  if (!playlist) return { ok: false, reason: "missing" };
+  if (list.some(p => p.id !== playlistId && p.name.toLowerCase() === name.toLowerCase())) {
+    return { ok: false, reason: "duplicate" };
+  }
+  playlist.name = name;
+  persistPlaylists(list);
+  return { ok: true, playlist };
+}
+
+// Cópia com os mesmos vídeos, logo depois da original: "Nome (cópia)", "Nome (cópia 2)", ...
+function duplicatePlaylist(playlistId) {
+  const list = loadPlaylists();
+  const index = list.findIndex(p => p.id === playlistId);
+  if (index < 0) return null;
+  if (list.length >= PLAYLISTS_MAX) {
+    showToast(`Limite de ${PLAYLISTS_MAX} playlists atingido.`);
+    return null;
+  }
+  const source = list[index];
+  const root = source.name.replace(/ \(cópia(?: \d+)?\)$/, ""); // copiar uma cópia não empilha "(cópia) (cópia)"
+  const taken = new Set(list.map(p => p.name.toLowerCase()));
+  let name = "";
+  for (let n = 1; !name || taken.has(name.toLowerCase()); n++) {
+    const suffix = n === 1 ? " (cópia)" : ` (cópia ${n})`;
+    name = root.slice(0, PLAYLIST_NAME_MAX - suffix.length).trimEnd() + suffix;
+  }
+  const copy = { id: newId(), name, createdAt: Date.now(), videos: source.videos.map(v => ({ ...v })) };
+  list.splice(index + 1, 0, copy);
+  persistPlaylists(list);
+  return copy;
+}
+
+const countLabel = (n, one, many) => `${n.toLocaleString("pt-BR")} ${n === 1 ? one : many}`;
+
+// ---- Tela inicial: vitrine com um cartão por playlist (cada uma abre a sua página) --------
+function isHomeVisible() {
+  const { q, v, pl } = readRoute();
+  return !q && !v && !pl && !resultsView.classList.contains("hidden");
+}
+
+function isPlaylistPageVisible() {
+  return !!readRoute().pl && !playlistPage.classList.contains("hidden");
+}
+
+// Redesenha a tela de playlists que estiver aberta (depois de salvar, importar, remover...)
+function refreshPlaylistViews() {
+  if (isHomeVisible()) renderHomeContent();
+  else if (isPlaylistPageVisible()) renderPlaylistPage(readRoute().pl);
+}
+
+// Os cartões substituem o aviso de "feed vazio" (que volta se não houver nenhuma playlist)
+function renderHomeContent() {
+  closePlaylistMenu(false);
+  const playlists = loadPlaylists();
+  playlistsHome.replaceChildren();
+  playlistPage.classList.add("hidden");
+  playlistsHome.classList.toggle("hidden", playlists.length === 0);
+  initialFeedState.classList.toggle("hidden", playlists.length > 0);
+  if (!playlists.length) return;
+
+  const heading = document.createElement("h2");
+  heading.className = "home-section-title";
+  heading.textContent = "Suas playlists";
+  const grid = document.createElement("div");
+  grid.className = "playlist-tiles";
+  playlists.forEach(playlist => grid.appendChild(createPlaylistTile(playlist)));
+  playlistsHome.append(heading, grid);
+}
+
+function createPlaylistTile(playlist) {
+  const total = countLabel(playlist.videos.length, "vídeo", "vídeos");
+
+  // Link de verdade (abre em nova guia com Ctrl/Cmd+clique)
+  const link = document.createElement("a");
+  link.className = "pl-tile";
+  link.href = buildUrl({ pl: playlist.id });
+  link.setAttribute("aria-label", `Abrir a playlist ${playlist.name} (${total})`);
+  link.addEventListener("click", e => {
+    if (e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
+    e.preventDefault();
+    navigate({ pl: playlist.id }, { historyState: { fromHome: true } });
+  });
+
+  const media = document.createElement("div");
+  media.className = "pl-tile-media";
+  const thumb = document.createElement("div");
+  thumb.className = "pl-tile-thumb";
+  const first = playlist.videos[0];
+  if (first) {
+    const img = document.createElement("img");
+    img.loading = "lazy";
+    img.alt = "";
+    img.referrerPolicy = "no-referrer";
+    img.src = `https://i.ytimg.com/vi/${first.id}/hqdefault.jpg`;
+    thumb.appendChild(img);
+  } else {
+    const empty = document.createElement("div");
+    empty.className = "pl-tile-empty";
+    empty.insertAdjacentHTML("beforeend", `<svg viewBox="0 0 24 24" class="icon" aria-hidden="true"><path d="${ICON_PLAYLIST_ADD}"/></svg>`);
+    thumb.appendChild(empty);
+  }
+  const badge = document.createElement("span");
+  badge.className = "video-duration";
+  badge.textContent = total;
+  thumb.appendChild(badge);
+  media.appendChild(thumb);
+
+  const title = document.createElement("h3");
+  title.className = "pl-tile-title";
+  title.textContent = playlist.name;
+  link.append(media, title);
+
+  const wrap = document.createElement("div");
+  wrap.className = "pl-tile-wrap";
+  wrap.append(link, createKebabButton(playlist, "home"));
+  return wrap;
+}
+
+// ---- Página de uma playlist (?playlist=ID) -------------------------------------------
+function showPlaylistPage(id) {
+  searchToken++;
+  searchSession = null;
+  clearPlayer();
+  playerView.classList.add("hidden");
+  resultsView.classList.remove("hidden");
+  initialFeedState.classList.add("hidden");
+  playlistsHome.classList.add("hidden");
+  paginationNav.classList.add("hidden");
+  resultsHeader.classList.add("hidden");
+  resultsContainer.classList.add("hidden");
+  emptyState.classList.add("hidden");
+  state.currentVideo = null;
+  state.currentQuery = "";
+  state.currentPage = 1;
+
+  if (!renderPlaylistPage(id)) {
+    playlistPage.classList.add("hidden");
+    showToast("Playlist não encontrada.");
+    navigate({}, { replace: true });
+  }
+}
+
+function renderPlaylistPage(id) {
+  closePlaylistMenu(false);
+  const playlist = loadPlaylists().find(p => p.id === id);
+  if (!playlist) return false;
+  playlistPage.replaceChildren();
+  setPageTitle(playlist.name);
+
+  const back = document.createElement("button");
+  back.type = "button";
+  back.className = "back-btn";
+  back.insertAdjacentHTML("beforeend", '<svg viewBox="0 0 24 24" class="icon"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg><span>Voltar para o início</span>');
+  back.addEventListener("click", () => {
+    if (history.state && history.state.fromHome) history.back();
+    else navigate({});
+  });
+
+  const head = document.createElement("div");
+  head.className = "playlist-head";
+  const title = document.createElement("h1");
+  title.className = "playlist-page-title";
+  title.textContent = playlist.name;
+  const count = document.createElement("span");
+  count.className = "playlist-count";
+  count.textContent = countLabel(playlist.videos.length, "vídeo", "vídeos");
+  head.append(title, count, createKebabButton(playlist, "page"));
+  playlistPage.append(back, head);
+
+  if (!playlist.videos.length) {
+    const empty = document.createElement("p");
+    empty.className = "playlist-empty";
+    empty.textContent = "Nenhum vídeo ainda. Abra um vídeo e use o botão Salvar.";
+    playlistPage.appendChild(empty);
+  } else {
+    const grid = document.createElement("div");
+    grid.className = "playlist-grid";
+    playlist.videos.forEach(entry => grid.appendChild(createPlaylistCard(playlist, entry)));
+    playlistPage.appendChild(grid);
+  }
+  playlistPage.classList.remove("hidden");
+  return true;
+}
+
+function createPlaylistCard(playlist, entry) {
+  const card = document.createElement("div");
+  card.className = "pl-card";
+
+  // Link de verdade (abre em nova guia com Ctrl/Cmd+clique); o botão de remover fica ao lado, não dentro dele
+  const link = document.createElement("a");
+  link.className = "pl-link";
+  link.href = buildUrl({ v: entry.id });
+  link.setAttribute("aria-label", `Assistir ${entry.title}`);
+  link.addEventListener("click", e => {
+    if (e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
+    e.preventDefault();
+    navigate({ v: entry.id }, { historyState: { fromPlaylist: playlist.id } });
+  });
+
+  const thumbWrap = document.createElement("div");
+  thumbWrap.className = "pl-thumb-wrap";
+  const img = document.createElement("img");
+  img.className = "pl-thumb";
+  img.loading = "lazy";
+  img.alt = "";
+  img.referrerPolicy = "no-referrer";
+  img.src = `https://i.ytimg.com/vi/${entry.id}/hqdefault.jpg`;
+  thumbWrap.appendChild(img);
+  if (entry.duration) {
+    const badge = document.createElement("span");
+    badge.className = "video-duration";
+    badge.textContent = entry.duration;
+    thumbWrap.appendChild(badge);
+  }
+
+  const title = document.createElement("h3");
+  title.className = "pl-title";
+  title.textContent = entry.title;
+  const channel = document.createElement("span");
+  channel.className = "pl-channel";
+  channel.textContent = entry.channel;
+  link.append(thumbWrap, title, channel);
+
+  const remove = document.createElement("button");
+  remove.type = "button";
+  remove.className = "pl-remove";
+  remove.title = "Remover da playlist";
+  remove.setAttribute("aria-label", `Remover ${entry.title} da playlist ${playlist.name}`);
+  remove.insertAdjacentHTML("beforeend", CLOSE_ICON);
+  remove.addEventListener("click", () => {
+    removeVideoFromPlaylist(playlist.id, entry.id);
+    renderPlaylistPage(playlist.id);
+    showToast(`Removido de “${playlist.name}”.`);
+  });
+
+  card.append(link, remove);
+  return card;
+}
+
+// ---- Menu ⋮ da playlist: renomear, duplicar, excluir -------------------------------------
+const MORE_ICON = '<svg viewBox="0 0 24 24" class="icon" aria-hidden="true"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>';
+const EDIT_ICON = '<svg viewBox="0 0 24 24" class="icon" aria-hidden="true"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a.996.996 0 0 0 0-1.41l-2.34-2.34a.996.996 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>';
+const COPY_ICON = '<svg viewBox="0 0 24 24" class="icon" aria-hidden="true"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>';
+
+let playlistMenu = null;   // { el, button, playlistId, context } enquanto o menu está aberto
+let renamingId = null;
+
+function createKebabButton(playlist, context) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "kebab-btn";
+  button.title = "Mais opções";
+  button.setAttribute("aria-label", `Mais opções da playlist ${playlist.name}`);
+  button.setAttribute("aria-haspopup", "menu");
+  button.setAttribute("aria-expanded", "false");
+  button.insertAdjacentHTML("beforeend", MORE_ICON);
+  button.addEventListener("click", e => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (playlistMenu && playlistMenu.button === button) closePlaylistMenu();
+    else openPlaylistMenu(button, playlist.id, context);
+  });
+  return button;
+}
+
+function closePlaylistMenu(restoreFocus = true) {
+  if (!playlistMenu) return;
+  const { el, button } = playlistMenu;
+  playlistMenu = null;
+  el.remove();
+  button.setAttribute("aria-expanded", "false");
+  if (restoreFocus && button.isConnected) button.focus();
+}
+
+function openPlaylistMenu(button, playlistId, context) {
+  closePlaylistMenu(false);
+  const el = document.createElement("div");
+  el.className = "pl-menu";
+  el.setAttribute("role", "menu");
+  el.setAttribute("aria-label", "Opções da playlist");
+  [["rename", "Renomear", EDIT_ICON], ["duplicate", "Duplicar", COPY_ICON], ["delete", "Excluir", TRASH_ICON, true]]
+    .forEach(([action, label, icon, danger]) => {
+      const item = document.createElement("button");
+      item.type = "button";
+      item.className = "pl-menu-item" + (danger ? " danger" : "");
+      item.setAttribute("role", "menuitem");
+      item.dataset.action = action;
+      item.insertAdjacentHTML("beforeend", icon);
+      const text = document.createElement("span");
+      text.textContent = label;
+      item.appendChild(text);
+      el.appendChild(item);
+    });
+  document.body.appendChild(el);
+
+  // Abaixo do botão, alinhado à direita; se não couber, sobe; sempre dentro da tela
+  const rect = button.getBoundingClientRect();
+  const left = Math.min(Math.max(8, rect.right - el.offsetWidth), window.innerWidth - el.offsetWidth - 8);
+  let top = rect.bottom + 4;
+  if (top + el.offsetHeight > window.innerHeight - 8) top = Math.max(8, rect.top - el.offsetHeight - 4);
+  el.style.left = `${left}px`;
+  el.style.top = `${top}px`;
+
+  button.setAttribute("aria-expanded", "true");
+  playlistMenu = { el, button, playlistId, context };
+  el.querySelector(".pl-menu-item").focus();
+}
+
+function confirmDeletePlaylist(playlist, context) {
+  const n = playlist.videos.length;
+  const detail = n ? ` e seus ${countLabel(n, "vídeo", "vídeos")}` : "";
+  if (!confirm(`Excluir a playlist “${playlist.name}”${detail}? Isso não pode ser desfeito.`)) return;
+  deletePlaylist(playlist.id);
+  showToast("Playlist excluída.");
+  if (context === "page") navigate({}, { replace: true }); // sem deixar a página apagada no histórico
+  else refreshPlaylistViews();
+}
+
+function openRenameModal(playlist) {
+  renamingId = playlist.id;
+  renameInput.value = playlist.name;
+  openModal(renameModal, "#renameInput");
+  renameInput.select();
+}
+
+function runPlaylistAction(action) {
+  if (!playlistMenu) return;
+  const { playlistId, context } = playlistMenu;
+  closePlaylistMenu(); // devolve o foco ao botão ⋮ (é para onde a janela de renomear volta ao fechar)
+  const playlist = loadPlaylists().find(p => p.id === playlistId);
+  if (!playlist) return;
+  if (action === "rename") {
+    openRenameModal(playlist);
+  } else if (action === "duplicate") {
+    const copy = duplicatePlaylist(playlistId);
+    if (!copy) return;
+    refreshPlaylistViews();
+    showToast(`Criada “${copy.name}”.`);
+  } else if (action === "delete") {
+    confirmDeletePlaylist(playlist, context);
+  }
+}
+
+document.addEventListener("click", e => {
+  const item = e.target.closest(".pl-menu-item");
+  if (item) runPlaylistAction(item.dataset.action);
+});
+
+// Clicar fora, rolar a página ou redimensionar fecha o menu
+document.addEventListener("pointerdown", e => {
+  if (playlistMenu && !playlistMenu.el.contains(e.target) && !playlistMenu.button.contains(e.target)) closePlaylistMenu(false);
+}, true);
+window.addEventListener("scroll", () => closePlaylistMenu(false), true);
+window.addEventListener("resize", () => closePlaylistMenu(false));
+
+document.addEventListener("keydown", e => {
+  if (!playlistMenu) return;
+  const items = [...playlistMenu.el.querySelectorAll(".pl-menu-item")];
+  const at = items.indexOf(document.activeElement);
+  if (e.key === "Escape") {
+    e.preventDefault();
+    closePlaylistMenu();
+  } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+    e.preventDefault();
+    items[(at + (e.key === "ArrowDown" ? 1 : -1) + items.length) % items.length].focus();
+  } else if (e.key === "Home" || e.key === "End") {
+    e.preventDefault();
+    items[e.key === "Home" ? 0 : items.length - 1].focus();
+  } else if (e.key === "Tab") {
+    closePlaylistMenu(false);
+  }
+});
+
+renameForm.addEventListener("submit", e => {
+  e.preventDefault();
+  const result = renamePlaylist(renamingId, renameInput.value);
+  if (!result.ok) {
+    if (result.reason === "missing") {
+      closeModal(renameModal);
+      showToast("Playlist não encontrada.");
+      refreshPlaylistViews();
+      return;
+    }
+    showToast(result.reason === "empty" ? "Digite um nome para a playlist." : "Já existe uma playlist com esse nome.");
+    renameInput.focus();
+    return;
+  }
+  closeModal(renameModal);
+  refreshPlaylistViews();
+  showToast("Playlist renomeada.");
+});
+
+// ---- Janelas (modais) ---------------------------------------------------------------
+let modalOpener = null;
+
+function openModal(modal, focusSelector) {
+  modalOpener = document.activeElement;
+  modal.classList.remove("hidden");
+  document.body.classList.add("modal-open");
+  const target = (focusSelector && modal.querySelector(focusSelector)) || modal.querySelector("button, input");
+  if (target) target.focus();
+}
+
+function closeModal(modal) {
+  modal.classList.add("hidden");
+  if (!document.querySelector(".modal:not(.hidden)")) document.body.classList.remove("modal-open");
+  if (modalOpener && modalOpener.isConnected) modalOpener.focus();
+  modalOpener = null;
+}
+
+document.addEventListener("click", e => {
+  const close = e.target.closest("[data-close]");
+  if (close) closeModal(close.closest(".modal"));
+});
+
+document.addEventListener("keydown", e => {
+  const modal = document.querySelector(".modal:not(.hidden)");
+  if (!modal) return;
+  if (e.key === "Escape") {
+    e.preventDefault();
+    closeModal(modal);
+  } else if (e.key === "Tab") {
+    // mantém o foco dentro da janela
+    const items = [...modal.querySelectorAll('button:not([disabled]), input:not([disabled]):not([hidden]), a[href]')]
+      .filter(el => el.offsetParent !== null);
+    if (!items.length) return;
+    const first = items[0], last = items[items.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    else if (!modal.contains(document.activeElement)) { e.preventDefault(); first.focus(); }
+  }
+});
+
+// ---- Salvar o vídeo em playlists ---------------------------------------------------
+function updateSaveButton() {
+  const video = state.currentVideo;
+  const canSave = !!(video && video.youtubeId);
+  saveBtn.classList.toggle("hidden", !canSave);
+  if (!canSave) return;
+  const saved = playlistsWithVideo(video.youtubeId).length > 0;
+  saveBtn.setAttribute("aria-pressed", String(saved));
+  saveIcon.querySelector("path").setAttribute("d", saved ? ICON_PLAYLIST_CHECK : ICON_PLAYLIST_ADD);
+  saveLabel.textContent = saved ? "Salvo" : "Salvar";
+}
+
+// Vídeo que a janela "Salvar em…" está editando: o aberto no player ou um resultado da pesquisa
+let saveTarget = null;
+
+// Marca nos resultados da pesquisa os vídeos que já estão em alguma playlist
+function savedVideoIds() {
+  return new Set(loadPlaylists().flatMap(p => p.videos.map(v => v.id)));
+}
+
+function setCardSaveState(button, saved) {
+  button.setAttribute("aria-pressed", String(saved));
+  button.title = saved ? "Salvo em playlist (editar)" : "Salvar em playlist";
+  button.querySelector("path").setAttribute("d", saved ? ICON_PLAYLIST_CHECK : ICON_PLAYLIST_ADD);
+}
+
+function updateResultSaveButtons() {
+  const saved = savedVideoIds();
+  document.querySelectorAll(".card-save-btn").forEach(button => setCardSaveState(button, saved.has(button.dataset.id)));
+}
+
+// Botão do botão Salvar do player + ícones dos resultados
+function refreshSaveStates() {
+  updateSaveButton();
+  updateResultSaveButtons();
+}
+
+function openSaveModal(video) {
+  if (!video || !video.youtubeId) return;
+  saveTarget = video;
+  saveModalVideo.textContent = video.title || "";
+  renderPlaylistPicker();
+  playlistNewName.value = "";
+  openModal(saveModal, loadPlaylists().length ? ".playlist-picker input" : "#playlistNewName");
+}
+
+function renderPlaylistPicker() {
+  const video = saveTarget;
+  playlistPicker.replaceChildren();
+  const playlists = loadPlaylists();
+  if (!playlists.length) {
+    const empty = document.createElement("li");
+    empty.className = "picker-empty";
+    empty.textContent = "Você ainda não tem playlists. Crie a primeira abaixo.";
+    playlistPicker.appendChild(empty);
+    return;
+  }
+  playlists.forEach(playlist => {
+    const li = document.createElement("li");
+    const label = document.createElement("label");
+    label.className = "pick";
+    const box = document.createElement("input");
+    box.type = "checkbox";
+    box.dataset.id = playlist.id;
+    box.checked = playlist.videos.some(v => v.id === video.youtubeId);
+    const name = document.createElement("span");
+    name.className = "pick-name";
+    name.textContent = playlist.name;
+    const count = document.createElement("span");
+    count.className = "pick-count";
+    count.textContent = playlist.videos.length;
+    label.append(box, name, count);
+    li.appendChild(label);
+    playlistPicker.appendChild(li);
+  });
+}
+
+saveBtn.addEventListener("click", () => openSaveModal(state.currentVideo));
+
+playlistPicker.addEventListener("change", e => {
+  const box = e.target.closest('input[type="checkbox"]');
+  if (!box || !saveTarget) return;
+  const playlist = loadPlaylists().find(p => p.id === box.dataset.id);
+  const ok = setVideoInPlaylist(box.dataset.id, saveTarget, box.checked);
+  if (!ok) { box.checked = !box.checked; return; }
+  renderPlaylistPicker();
+  refreshSaveStates();
+  refreshPlaylistViews();
+  if (playlist) showToast(box.checked ? `Salvo em “${playlist.name}”.` : `Removido de “${playlist.name}”.`);
+  // mantém o foco no mesmo item depois de redesenhar a lista
+  const again = playlistPicker.querySelector(`input[data-id="${CSS.escape(box.dataset.id)}"]`);
+  if (again) again.focus();
+});
+
+playlistNewForm.addEventListener("submit", e => {
+  e.preventDefault();
+  if (!saveTarget) return;
+  const playlist = createPlaylist(playlistNewName.value);
+  if (!playlist) {
+    if (!playlistNewName.value.trim()) showToast("Digite um nome para a playlist.");
+    return;
+  }
+  setVideoInPlaylist(playlist.id, saveTarget, true); // criar já salva o vídeo, como no YouTube
+  playlistNewName.value = "";
+  renderPlaylistPicker();
+  refreshSaveStates();
+  refreshPlaylistViews();
+  showToast(`Salvo em “${playlist.name}”.`);
+});
+
+// ---- Configurações: exportar e importar --------------------------------------------
+function describePlaylists() {
+  const list = loadPlaylists();
+  if (!list.length) return "Você ainda não tem playlists salvas.";
+  const videos = list.reduce((n, p) => n + p.videos.length, 0);
+  return `${countLabel(list.length, "playlist", "playlists")} · ${countLabel(videos, "vídeo", "vídeos")}`;
+}
+
+settingsBtn.addEventListener("click", () => {
+  settingsSummary.textContent = describePlaylists();
+  openModal(settingsModal, "#exportBtn");
+});
+
+exportBtn.addEventListener("click", () => {
+  const playlists = loadPlaylists();
+  if (!playlists.length) {
+    showToast("Você ainda não tem playlists para exportar.");
+    return;
+  }
+  const data = { app: "HooTube", version: 1, exportedAt: new Date().toISOString(), playlists };
+  const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `hootube-playlists-${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+  showToast("Playlists exportadas.");
+});
+
+importBtn.addEventListener("click", () => importFile.click());
+
+// Soma as playlists do arquivo às existentes (mesmo id ou mesmo nome = junta os vídeos)
+function mergePlaylists(current, incoming) {
+  const result = current.map(p => ({ ...p, videos: [...p.videos] }));
+  let newPlaylists = 0, newVideos = 0;
+  incoming.forEach(item => {
+    let target = result.find(p => p.id === item.id) || result.find(p => p.name.toLowerCase() === item.name.toLowerCase());
+    if (!target) {
+      if (result.length >= PLAYLISTS_MAX) return;
+      target = { id: item.id, name: item.name, createdAt: item.createdAt, videos: [] };
+      result.push(target);
+      newPlaylists++;
+    }
+    const have = new Set(target.videos.map(v => v.id));
+    item.videos.forEach(v => {
+      if (have.has(v.id) || target.videos.length >= PLAYLIST_VIDEOS_MAX) return;
+      target.videos.push(v);
+      have.add(v.id);
+      newVideos++;
+    });
+  });
+  return { result, newPlaylists, newVideos };
+}
+
+importFile.addEventListener("change", async () => {
+  const file = importFile.files[0];
+  importFile.value = ""; // permite escolher o mesmo arquivo de novo
+  if (!file) return;
+  if (file.size > IMPORT_MAX_BYTES) {
+    showToast("Arquivo grande demais para ser um backup de playlists.");
+    return;
+  }
+  let incoming;
+  try {
+    const data = JSON.parse(await file.text());
+    const raw = Array.isArray(data) ? data : data && data.playlists;
+    if (!Array.isArray(raw)) throw new Error("formato");
+    incoming = raw.map(sanitizePlaylist).filter(Boolean);
+  } catch (err) {
+    showToast("Arquivo inválido: não é um backup de playlists do HooTube.");
+    return;
+  }
+  if (!incoming.length) {
+    showToast("Nenhuma playlist válida encontrada no arquivo.");
+    return;
+  }
+  const { result, newPlaylists, newVideos } = mergePlaylists(loadPlaylists(), incoming);
+  persistPlaylists(result);
+  settingsSummary.textContent = describePlaylists();
+  refreshSaveStates();
+  refreshPlaylistViews();
+  showToast(newPlaylists || newVideos
+    ? `Importado: ${countLabel(newPlaylists, "playlist nova", "playlists novas")} e ${countLabel(newVideos, "vídeo novo", "vídeos novos")}.`
+    : "Nada novo para importar: tudo já estava salvo.");
+});
 
 // Favicon na cor primária (--cor_primaria em style.css); o do index.html é só reserva
 function applyFavicon() {
