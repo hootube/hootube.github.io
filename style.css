@@ -1980,3 +1980,17 @@ body.modal-open .toast {
   width: 100%;
   text-align: center;
 }
+
+/* Ícone + texto nos botões do popup de configurações */
+#settingsModal .action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#settingsModal .action-btn .icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  fill: currentColor;
+}
