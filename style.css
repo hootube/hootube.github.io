@@ -1965,3 +1965,18 @@ body.modal-open .toast {
   background-color: var(--cor_primaria);
   filter: brightness(0.9);
 }
+
+/* "Limpar dados": seção à parte, com o botão em largura quase total e centralizado */
+.modal-danger {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-color);
+}
+
+.modal-danger .danger-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  text-align: center;
+}
