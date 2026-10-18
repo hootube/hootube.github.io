@@ -161,7 +161,7 @@
     "inscrição nova": "new subscription", "inscrições novas": "new subscriptions",
     "inscrições": "subscriptions", "playlists": "playlists",
     "Arquivo grande demais para ser um backup de {label}.": "File too large to be a {label} backup.",
-    "Este arquivo é de {other}. Use \"Importar {label}\" com o arquivo certo.": "This file contains {other}. Use \"Import {label}\" with the right file.",
+    "Este arquivo é de {other}, não de {label}.": "This file contains {other}, not {label}.",
     "Arquivo inválido: não é um backup de {label} do HooTube.": "Invalid file: not a HooTube {label} backup.",
     "Nenhuma inscrição válida encontrada no arquivo.": "No valid subscription found in the file.",
     "Nenhuma playlist válida encontrada no arquivo.": "No valid playlist found in the file.",
@@ -188,6 +188,9 @@
     "Apaga as playlists, as inscrições, as pesquisas recentes e o tema guardados neste aparelho. Exporte um backup antes se quiser poder recuperar.": "Deletes the playlists, subscriptions, recent searches and theme stored on this device. Export a backup first if you want to be able to recover them.",
     "Apagar todas as playlists, inscrições, pesquisas recentes e o tema guardados neste aparelho? Isso não pode ser desfeito.": "Delete all playlists, subscriptions, recent searches and the theme stored on this device? This cannot be undone.",
     "Dados apagados.": "Data deleted.",
+    "Tudo fica guardado localmente neste aparelho.": "Everything is stored locally on this device.",
+    "Exportar": "Export",
+    "Importar": "Import",
     // ---- player (rótulos)
     "Abrir no YouTube": "Open on YouTube"
   };
@@ -323,7 +326,7 @@
     "inscrição nova": "suscripción nueva", "inscrições novas": "suscripciones nuevas",
     "inscrições": "suscripciones", "playlists": "listas",
     "Arquivo grande demais para ser um backup de {label}.": "El archivo es demasiado grande para ser una copia de {label}.",
-    "Este arquivo é de {other}. Use \"Importar {label}\" com o arquivo certo.": "Este archivo es de {other}. Usa \"Importar {label}\" con el archivo correcto.",
+    "Este arquivo é de {other}, não de {label}.": "Este archivo es de {other}, no de {label}.",
     "Arquivo inválido: não é um backup de {label} do HooTube.": "Archivo no válido: no es una copia de {label} de HooTube.",
     "Nenhuma inscrição válida encontrada no arquivo.": "No se encontró ninguna suscripción válida en el archivo.",
     "Nenhuma playlist válida encontrada no arquivo.": "No se encontró ninguna lista válida en el archivo.",
@@ -350,6 +353,9 @@
     "Apaga as playlists, as inscrições, as pesquisas recentes e o tema guardados neste aparelho. Exporte um backup antes se quiser poder recuperar.": "Borra las listas, las suscripciones, las búsquedas recientes y el tema guardados en este dispositivo. Exporta una copia antes si quieres poder recuperarlos.",
     "Apagar todas as playlists, inscrições, pesquisas recentes e o tema guardados neste aparelho? Isso não pode ser desfeito.": "¿Borrar todas las listas, suscripciones, búsquedas recientes y el tema guardados en este dispositivo? Esto no se puede deshacer.",
     "Dados apagados.": "Datos borrados.",
+    "Tudo fica guardado localmente neste aparelho.": "Todo se guarda localmente en este dispositivo.",
+    "Exportar": "Exportar",
+    "Importar": "Importar",
     "Abrir no YouTube": "Abrir en YouTube"
   };
 

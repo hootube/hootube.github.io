@@ -2932,7 +2932,7 @@ importFile.addEventListener("change", async () => {
   // Lista solta = formato antigo de playlists
   const sections = isObject ? data : { playlists: data };
   if (isObject && kind !== "all" && data.type && data.type !== "backup" && data.type !== kind) {
-    showToast(t("Este arquivo é de {other}. Use \"Importar {label}\" com o arquivo certo.", { other: t(data.type === "subscriptions" ? "inscrições" : "playlists"), label }));
+    showToast(t("Este arquivo é de {other}, não de {label}.", { other: t(data.type === "subscriptions" ? "inscrições" : "playlists"), label }));
     return;
   }
 
