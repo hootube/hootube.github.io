@@ -1787,11 +1787,16 @@ body.modal-open .toast {
   margin-left: 12px;
   padding: 8px 16px;
   border-radius: var(--radius-pill);
-  background: var(--text-primary);
-  color: var(--bg-primary, #fff);
+  background: var(--cor_primaria);
+  color: #ffffff;
   font-size: 0.88rem;
   font-weight: 600;
   white-space: nowrap;
+  transition: filter 0.15s ease;
+}
+
+.subscribe-btn:hover {
+  filter: brightness(0.9);
 }
 
 .subscribe-btn.subscribed {
