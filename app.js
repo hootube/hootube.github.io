@@ -1258,6 +1258,8 @@ function showInitialFeed() {
   playerView.classList.add("hidden");
   resultsView.classList.remove("hidden");
   renderHomeContent();
+  channelPage.classList.add("hidden");
+  channelMoreBtn.classList.add("hidden");
   resultsHeader.classList.add("hidden");
   resultsContainer.classList.add("hidden");
   emptyState.classList.add("hidden");
@@ -1675,20 +1677,26 @@ loadMoreCommentsBtn.addEventListener("click", loadMoreComments);
 // Reset Search
 resetSearchBtn.addEventListener("click", goHome);
 
-// Alternar Tema (Dark / Light)
+// Tema (escuro / claro): a escolha fica guardada no navegador
+const THEME_KEY = "hootube.tema";
+const THEME_ICON_DARK = `<path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-3.03 0-5.5-2.47-5.5-5.5 0-1.82.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z"/>`;
+const THEME_ICON_LIGHT = `<path d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58c-.39-.39-1.03-.39-1.41 0s-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41L5.99 4.58zm12.37 12.37c-.39-.39-1.03-.39-1.41 0s-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41l-1.06-1.06zm1.06-10.96c.39-.39.39-1.03 0-1.41s-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06zM7.05 18.36c.39-.39.39-1.03 0-1.41s-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06z"/>`;
+
+function applyTheme(dark) {
+  state.isDarkTheme = dark;
+  document.body.classList.toggle("light-theme", !dark);
+  document.body.classList.toggle("dark-theme", dark);
+  document.getElementById("themeIcon").innerHTML = dark ? THEME_ICON_DARK : THEME_ICON_LIGHT;
+}
+
+try {
+  if (localStorage.getItem(THEME_KEY) === "claro") applyTheme(false);
+} catch (err) { /* localStorage indisponível: fica no escuro */ }
+
 themeToggleBtn.addEventListener("click", () => {
-  state.isDarkTheme = !state.isDarkTheme;
-  document.body.classList.toggle("light-theme", !state.isDarkTheme);
-  document.body.classList.toggle("dark-theme", state.isDarkTheme);
-  
-  const themeIcon = document.getElementById("themeIcon");
-  if (state.isDarkTheme) {
-    themeIcon.innerHTML = `<path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-3.03 0-5.5-2.47-5.5-5.5 0-1.82.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z"/>`;
-    showToast(t("Tema escuro ativado"));
-  } else {
-    themeIcon.innerHTML = `<path d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58c-.39-.39-1.03-.39-1.41 0s-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41L5.99 4.58zm12.37 12.37c-.39-.39-1.03-.39-1.41 0s-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41l-1.06-1.06zm1.06-10.96c.39-.39.39-1.03 0-1.41s-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06zM7.05 18.36c.39-.39.39-1.03 0-1.41s-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06z"/>`;
-    showToast(t("Tema claro ativado"));
-  }
+  applyTheme(!state.isDarkTheme);
+  try { localStorage.setItem(THEME_KEY, state.isDarkTheme ? "escuro" : "claro"); } catch (err) { /* sem espaço ou bloqueado */ }
+  showToast(t(state.isDarkTheme ? "Tema escuro ativado" : "Tema claro ativado"));
 });
 
 // Voltar / avançar / atualizar: a URL é a fonte da verdade
@@ -2233,7 +2241,12 @@ async function showChannelPage(id) {
   const videos = mapChannelVideos(data.relatedStreams, channel);
   channelState = { id, channel, videos, mode: videos.length ? "channel" : "search", nextpage: videos.length ? (data.nextpage || null) : null };
   if (channelState.mode === "search") {
+    const loading = document.createElement("p");
+    loading.className = "channel-status";
+    loading.textContent = t("Carregando...");
+    channelPage.appendChild(loading);
     try { await loadMoreChannelVideos(channelState); } catch (err) { /* mostra "sem vídeos" abaixo */ }
+    loading.remove();
     if (token !== channelToken) return;
   }
   renderChannelVideos();
