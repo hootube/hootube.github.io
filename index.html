@@ -95,10 +95,14 @@
       </div>
 
       <!-- Vitrine das playlists salvas (tela inicial) -->
+      <section class="playlists-home hidden" id="subscriptionsHome" aria-label="Canais inscritos"></section>
       <section class="playlists-home hidden" id="playlistsHome" aria-label="Playlists salvas"></section>
 
       <!-- Página de uma playlist (?playlist=ID) -->
       <section class="playlist-page hidden" id="playlistPage" aria-label="Playlist"></section>
+
+      <!-- Página de um canal (?channel=ID): cabeçalho aqui, vídeos no #resultsContainer -->
+      <section class="channel-page hidden" id="channelPage" aria-label="Canal"></section>
 
       <div class="results-header hidden" id="resultsHeader">
         <h2 class="results-title" id="resultsHeading">Resultados</h2>
@@ -109,6 +113,7 @@
       <div class="results-container hidden" id="resultsContainer">
         <!-- Renderizado dinamicamente via JS após busca -->
       </div>
+      <button type="button" class="action-btn channel-more hidden" id="channelMoreBtn">Mostrar mais vídeos</button>
 
       <!-- Paginação dos resultados -->
       <nav class="pagination hidden" id="pagination" aria-label="Paginação dos resultados"></nav>
@@ -153,6 +158,7 @@
                   </div>
                   <span class="subscribers-count" id="playerSubscribers">1.2M inscritos</span>
                 </div>
+                <button type="button" class="subscribe-btn" id="subscribeBtn" aria-pressed="false">Inscrever-se</button>
               </div>
 
               <!-- Botões de Ação (Compartilhar) -->
@@ -253,14 +259,20 @@
           <svg viewBox="0 0 24 24" class="icon"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
         </button>
       </div>
+      <p class="modal-text muted">Tudo fica só neste navegador. Exporte para guardar um backup ou levar para outro aparelho; ao importar, o conteúdo do arquivo é somado ao que você já tem.</p>
+      <h3 class="modal-section">Inscrições</h3>
+      <p class="modal-text" id="subsSummary"></p>
+      <div class="modal-actions">
+        <button type="button" class="action-btn" id="exportSubsBtn">Exportar inscrições</button>
+        <button type="button" class="action-btn" id="importSubsBtn">Importar inscrições</button>
+      </div>
       <h3 class="modal-section">Playlists</h3>
       <p class="modal-text" id="settingsSummary"></p>
-      <p class="modal-text muted">Elas ficam só neste navegador. Exporte para guardar um backup ou levar para outro aparelho; ao importar, as playlists do arquivo são somadas às que você já tem.</p>
       <div class="modal-actions">
         <button type="button" class="action-btn" id="exportBtn">Exportar playlists</button>
         <button type="button" class="action-btn" id="importBtn">Importar playlists</button>
-        <input type="file" id="importFile" accept="application/json,.json" hidden>
       </div>
+      <input type="file" id="importFile" accept="application/json,.json" hidden>
     </div>
   </div>
 
@@ -268,6 +280,7 @@
   <div class="toast hidden" id="toast">Link copiado para a área de transferência!</div>
 
   <script src="config.js"></script>
+  <script src="i18n.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

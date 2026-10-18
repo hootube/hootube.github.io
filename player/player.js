@@ -17,7 +17,7 @@ const CONTROLS = [
   "progress", "mute+volume", "current-time", "captions", "settings", "fullscreen"
 ];
 
-const TRANSLATIONS = {
+const PT_TRANSLATIONS = {
   "Audio": "Áudio",
   "Auto": "Automático",
   "Captions": "Legendas",
@@ -43,9 +43,24 @@ const TRANSLATIONS = {
   "Disable captions": "Desativar legendas"
 };
 
+// Rótulos do Vidstack por idioma da interface (window.HOOTUBE_LANG, definido em i18n.js).
+// Em inglês só os de 10 s precisam de ajuste: o resto já vem em inglês do próprio Vidstack.
+const ES_TRANSLATIONS = {
+  "Audio": "Audio", "Auto": "Automático", "Captions": "Subtítulos",
+  "Enter Fullscreen": "Pantalla completa", "Exit Fullscreen": "Salir de pantalla completa",
+  "Fast forward": "Avanzar 10 s", "Go back to previous menu": "Volver", "Mute": "Silenciar",
+  "Normal": "Normal", "Pause": "Pausar", "Play": "Reproducir", "Quality": "Calidad", "Reset": "Restablecer",
+  "Restart": "Reiniciar", "Rewind": "Retroceder 10 s", "Settings": "Configuración", "Speed": "Velocidad",
+  "Unmute": "Activar sonido", "Volume": "Volumen", "Disabled": "Desactivado", "Enabled": "Activado",
+  "Enable captions": "Activar subtítulos", "Disable captions": "Desactivar subtítulos"
+};
+const EN_TRANSLATIONS = { "Fast forward": "Forward 10 s", "Rewind": "Back 10 s" };
+const TRANSLATIONS = { pt: PT_TRANSLATIONS, es: ES_TRANSLATIONS, en: EN_TRANSLATIONS }[window.HOOTUBE_LANG || "pt"] || EN_TRANSLATIONS;
+const T = (text) => (window.t ? window.t(text) : text);
+
 const YOUTUBE_ICON =
   '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>' +
-  '<span class="plyr__tooltip" role="tooltip">Abrir no YouTube</span>';
+  '<span class="plyr__tooltip" role="tooltip">' + T("Abrir no YouTube") + '</span>';
 
 let vidstackPromise = null;
 let stylesLoaded = false;
@@ -82,7 +97,7 @@ function watchYouTubeButton(container, youtubeId) {
     button.id = "hoo-yt-btn";
     button.type = "button";
     button.className = "plyr__controls__item plyr__control";
-    button.setAttribute("aria-label", "Abrir no YouTube");
+    button.setAttribute("aria-label", T("Abrir no YouTube"));
     button.innerHTML = YOUTUBE_ICON;
     button.addEventListener("click", () => {
       window.open(`https://www.youtube.com/watch?v=${encodeURIComponent(youtubeId)}`, "_blank", "noopener");
@@ -210,7 +225,7 @@ function setupKeyboardShortcuts(player, container) {
         if (!focusInPlayer || target.closest(OWN_KEYS)) return;
         const volume = Math.min(1, Math.max(0, Math.round((player.volume + (lower === "ArrowUp" ? VOLUME_STEP : -VOLUME_STEP)) * 100) / 100));
         handled(); player.muted = false; player.volume = volume;
-        showHint(container, `Volume ${Math.round(volume * 100)}%`);
+        showHint(container, `${TRANSLATIONS["Volume"] || "Volume"} ${Math.round(volume * 100)}%`);
         return;
       }
       case "Home":

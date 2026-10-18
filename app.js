@@ -248,6 +248,13 @@ const exportBtn = document.getElementById("exportBtn");
 const importBtn = document.getElementById("importBtn");
 const importFile = document.getElementById("importFile");
 const playlistsHome = document.getElementById("playlistsHome");
+const channelPage = document.getElementById("channelPage");
+const channelMoreBtn = document.getElementById("channelMoreBtn");
+const subscriptionsHome = document.getElementById("subscriptionsHome");
+const subscribeBtn = document.getElementById("subscribeBtn");
+const subsSummary = document.getElementById("subsSummary");
+const exportSubsBtn = document.getElementById("exportSubsBtn");
+const importSubsBtn = document.getElementById("importSubsBtn");
 const playlistPage = document.getElementById("playlistPage");
 const renameModal = document.getElementById("renameModal");
 const renameForm = document.getElementById("renameForm");
@@ -348,19 +355,21 @@ function formatDuration(seconds) {
 function formatRelativeDate(timestamp) {
   if (!timestamp || timestamp < 0) return "";
   const diffSec = Math.max(0, (Date.now() - timestamp) / 1000);
-  const units = [
-    [31536000, "ano", "anos"],
-    [2592000, "mês", "meses"],
-    [604800, "semana", "semanas"],
-    [86400, "dia", "dias"],
-    [3600, "hora", "horas"],
-    [60, "minuto", "minutos"]
-  ];
-  for (const [size, one, many] of units) {
+  const units = [[31536000, "year"], [2592000, "month"], [604800, "week"], [86400, "day"], [3600, "hour"], [60, "minute"]];
+  for (const [size, unit] of units) {
     const n = Math.floor(diffSec / size);
-    if (n >= 1) return `há ${n} ${n === 1 ? one : many}`;
+    if (n >= 1) return relativeTime(-n, unit);
   }
-  return "agora há pouco";
+  return t("agora há pouco");
+}
+
+// "há 3 meses" / "3 months ago" / "hace 3 meses", no idioma da interface
+function relativeTime(value, unit) {
+  try {
+    return new Intl.RelativeTimeFormat(window.HOOTUBE_LOCALE || "pt-BR", { numeric: "always" }).format(value, unit);
+  } catch (err) {
+    return `${value} ${unit}`;
+  }
 }
 
 // O proxy de imagens da instância falha com frequência; usa o host original (ex.: yt3.ggpht.com)
@@ -384,10 +393,11 @@ function mapPipedItem(item) {
     title: item.title,
     thumbnail: `https://i.ytimg.com/vi/${id}/hqdefault.jpg`,
     duration: formatDuration(item.duration),
-    channel: item.uploaderName || "Canal no YouTube",
+    channel: item.uploaderName || t("Canal no YouTube"),
     channelAvatar: directImageUrl(item.uploaderAvatar),
+    channelId: ((item.uploaderUrl || "").match(/\/channel\/(UC[\w-]{20,})/) || [])[1] || "",
     subscribers: "",
-    views: item.views >= 0 ? `${item.views.toLocaleString("pt-BR")} visualizações` : "",
+    views: item.views >= 0 ? t("{n} visualizações", { n: item.views.toLocaleString(window.HOOTUBE_LOCALE) }) : "",
     date: formatRelativeDate(item.uploaded) || item.uploadedDate || "",
     category: "YouTube",
     tags: ["#YouTube"],
@@ -436,7 +446,7 @@ function mapApiVideo(item) {
     titleLocalized: true,
     thumbnail: `https://i.ytimg.com/vi/${item.id}/hqdefault.jpg`,
     duration: item.live ? "AO VIVO" : (item.durationText || formatDuration(item.duration)),
-    channel: item.channel || "Canal no YouTube",
+    channel: item.channel || t("Canal no YouTube"),
     channelAvatar: item.channelAvatar || "",
     subscribers: "",
     views: item.viewsText || "",
@@ -514,7 +524,7 @@ function localizeTitle(video, card) {
     if (!card.isConnected) return;
     card.querySelector(".video-card-title").textContent = data.title;
     card.querySelector(".video-card-thumb").alt = data.title;
-    card.setAttribute("aria-label", `Assistir ${data.title}`);
+    card.setAttribute("aria-label", t("Assistir {title}", { title: data.title }));
   });
 }
 
@@ -528,7 +538,7 @@ function createCardSaveButton(video, savedIds) {
   button.className = "card-save-btn";
   button.dataset.id = video.youtubeId;
   button.setAttribute("aria-haspopup", "dialog");
-  button.setAttribute("aria-label", `Salvar “${video.title}” em uma playlist`);
+  button.setAttribute("aria-label", t("Salvar “{title}” em uma playlist", { title: video.title }));
   button.insertAdjacentHTML("beforeend", `<svg viewBox="0 0 24 24" class="icon" aria-hidden="true"><path d="${ICON_PLAYLIST_ADD}"/></svg>`);
   setCardSaveState(button, savedIds.has(video.youtubeId));
   button.addEventListener("click", () => openSaveModal(video));
@@ -540,12 +550,12 @@ function renderResults(videos) {
 
   if (videos.length === 0) {
     emptyState.classList.remove("hidden");
-    resultsCount.textContent = "0 resultados";
+    resultsCount.textContent = t("0 resultados");
     return;
   }
 
   emptyState.classList.add("hidden");
-  resultsCount.textContent = `${videos.length} resultado${videos.length > 1 ? "s" : ""}`;
+  resultsCount.textContent = countLabel(videos.length, "resultado", "resultados");
   const savedIds = savedVideoIds();
 
   videos.forEach(video => {
@@ -553,7 +563,7 @@ function renderResults(videos) {
     const card = document.createElement("a");
     card.className = "video-card";
     card.href = buildUrl({ v: video.youtubeId || video.id });
-    card.setAttribute("aria-label", `Assistir ${video.title}`);
+    card.setAttribute("aria-label", t("Assistir {title}", { title: video.title }));
 
     card.innerHTML = `
       <div class="video-card-thumb-wrap">
@@ -617,7 +627,7 @@ async function showSearch(term, page) {
     } catch (err) {
       if (token !== searchToken) return;
       resultsHeader.classList.add("hidden");
-      setEmptyState("Não foi possível buscar", "O serviço de busca não respondeu. Tente novamente em instantes.");
+      setEmptyState(t("Não foi possível buscar"), t("O serviço de busca não respondeu. Tente novamente em instantes."));
       return;
     }
     if (token !== searchToken) return;
@@ -632,7 +642,7 @@ async function showSearch(term, page) {
       await ensureResults(session, needed);
     } catch (err) {
       if (token !== searchToken) return;
-      showToast("Não foi possível carregar mais resultados.");
+      showToast(t("Não foi possível carregar mais resultados."));
     }
     if (token !== searchToken) return;
   }
@@ -657,7 +667,7 @@ function renderSearchPage() {
     resultsHeader.classList.add("hidden");
     resultsContainer.classList.add("hidden");
     paginationNav.classList.add("hidden");
-    setEmptyState("Nenhum resultado encontrado", "Tente termos de pesquisa diferentes ou cole o link de um vídeo.");
+    setEmptyState(t("Nenhum resultado encontrado"), t("Tente termos de pesquisa diferentes ou cole o link de um vídeo."));
     return;
   }
 
@@ -669,7 +679,7 @@ function renderSearchPage() {
   resultsHeader.classList.remove("hidden");
   resultsContainer.classList.remove("hidden");
   renderResults(pageItems);
-  resultsCount.textContent = `Página ${session.page}`;
+  resultsCount.textContent = t("Página {n}", { n: session.page });
   renderPagination();
 }
 
@@ -687,14 +697,14 @@ function renderPagination() {
   for (let n = 1; n <= loadedPages; n++) {
     numbers.push(
       `<button type="button" class="page-btn${n === session.page ? " active" : ""}" data-page="${n}" ` +
-      `aria-label="Página ${n}"${n === session.page ? ' aria-current="page"' : ""}>${n}</button>`
+      `aria-label="${t("Página {n}", { n })}"${n === session.page ? ' aria-current="page"' : ""}>${n}</button>`
     );
   }
 
   paginationNav.innerHTML =
-    `<button type="button" class="page-btn page-nav" data-page="${session.page - 1}" ${session.page <= 1 ? "disabled" : ""}>Anterior</button>` +
+    `<button type="button" class="page-btn page-nav" data-page="${session.page - 1}" ${session.page <= 1 ? "disabled" : ""}>${t("Anterior")}</button>` +
     numbers.join("") +
-    `<button type="button" class="page-btn page-nav" data-page="${session.page + 1}" ${hasNext ? "" : "disabled"}>Próxima</button>`;
+    `<button type="button" class="page-btn page-nav" data-page="${session.page + 1}" ${hasNext ? "" : "disabled"}>${t("Próxima")}</button>`;
   paginationNav.classList.remove("hidden");
 }
 
@@ -713,6 +723,8 @@ function fillPlayerMetadata(video) {
   playerChannelAvatar.src = video.channelAvatar || "";
   playerChannelAvatar.alt = video.channel;
   playerChannelName.textContent = video.channel;
+  updateSubscribeButton(video);
+  [playerChannelAvatar, playerChannelName].forEach(el => el.classList.toggle("channel-link", !!video.channelId));
   playerSubscribers.textContent = video.subscribers;
   playerViews.textContent = video.views;
   playerDate.textContent = video.date;
@@ -757,7 +769,7 @@ async function enrichFromSearch(video) {
   if (!video.youtubeId || video.channelAvatar || video.fromApi || video.searchEnriched) return;
   video.searchEnriched = true;
   const queries = [video.title, `${video.title} ${video.channel}`]
-    .filter(q => q && !q.startsWith("Vídeo do YouTube ("))
+    .filter(q => q && !q.startsWith(t("Vídeo do YouTube") + " ("))
     .map(q => q.trim().slice(0, 150));
 
   for (const query of queries) {
@@ -766,6 +778,7 @@ async function enrichFromSearch(video) {
       const found = page.items.find(v => v.youtubeId === video.youtubeId);
       if (!found) continue;
       video.channelAvatar = video.channelAvatar || found.channelAvatar;
+      video.channelId = video.channelId || found.channelId;
       video.views = video.views || found.views;
       video.date = video.date || found.date;
       video.description = video.description || found.description;
@@ -913,13 +926,9 @@ function formatCount(num) {
 }
 
 function formatCommentTime(text) {
-  const units = { second: "segundo", minute: "minuto", hour: "hora", day: "dia", week: "semana", month: "mês", year: "ano" };
   const m = /^(\d+)\s+(second|minute|hour|day|week|month|year)s?\s+ago(.*)$/i.exec(text || "");
   if (!m) return text || "";
-  const n = Number(m[1]);
-  const unit = units[m[2].toLowerCase()];
-  const plural = n === 1 ? unit : (unit === "mês" ? "meses" : unit + "s");
-  return `há ${n} ${plural}${/edited/i.test(m[3]) ? " (editado)" : ""}`;
+  return relativeTime(-Number(m[1]), m[2].toLowerCase()) + (/edited/i.test(m[3]) ? " " + t("(editado)") : "");
 }
 
 function mapPipedComment(c) {
@@ -1048,9 +1057,9 @@ function setCommentsMessage(text) {
 
 function updateCommentsHeader() {
   const total = commentsState.total ?? commentsState.items.length;
-  const label = typeof total === "number" ? total.toLocaleString("pt-BR") : String(total).replace(/\u00a0/g, " ");
+  const label = typeof total === "number" ? total.toLocaleString(window.HOOTUBE_LOCALE) : String(total).replace(/\u00a0/g, " ");
   const singular = total === 1 || total === "1";
-  commentsCountText.textContent = `${label} Comentário${singular ? "" : "s"}`;
+  commentsCountText.textContent = `${label} ${singular ? t("Comentário") : t("Comentários")}`;
 }
 
 function createCommentElement(comment, isReply = false) {
@@ -1123,11 +1132,11 @@ function attachReplies(body, comment) {
   const more = document.createElement("button");
   more.type = "button";
   more.className = "replies-toggle hidden";
-  more.textContent = "Mostrar mais respostas";
+  more.textContent = t("Mostrar mais respostas");
   box.append(list, more);
 
-  const label = `${comment.replyCount.toLocaleString("pt-BR")} resposta${comment.replyCount !== 1 ? "s" : ""}`;
-  const renderToggle = () => { toggle.textContent = `${open ? "Ocultar" : "Ver"} ${label}`; };
+  const label = countLabel(comment.replyCount, "resposta", "respostas");
+  const renderToggle = () => { toggle.textContent = t(open ? "Ocultar {label}" : "Ver {label}", { label }); };
   renderToggle();
 
   async function loadReplies() {
@@ -1141,7 +1150,7 @@ function attachReplies(body, comment) {
       next = page.items.length ? page.next : null;
       loaded = true;
     } catch (err) {
-      if (token === commentsToken) showToast("Não foi possível carregar as respostas.");
+      if (token === commentsToken) showToast(t("Não foi possível carregar as respostas."));
     } finally {
       loading = false;
       toggle.disabled = more.disabled = false;
@@ -1181,22 +1190,22 @@ async function loadComments(video) {
     const local = video.comments || [];
     commentsState = { items: local, total: local.length, nextpage: null, videoId: null };
     updateCommentsHeader();
-    if (local.length === 0) setCommentsMessage("Nenhum comentário.");
+    if (local.length === 0) setCommentsMessage(t("Nenhum comentário."));
     else appendComments(local);
     return;
   }
 
   const videoId = video.youtubeId || video.id.replace("yt-", "");
   commentsState = { items: [], total: null, nextpage: null, videoId };
-  commentsCountText.textContent = "Comentários";
-  setCommentsMessage("Carregando comentários...");
+  commentsCountText.textContent = t("Comentários");
+  setCommentsMessage(t("Carregando comentários..."));
 
   try {
     const page = await fetchCommentsPage(videoId, null);
     if (token !== commentsToken) return;
     if (page.disabled) {
-      commentsCountText.textContent = "Comentários";
-      setCommentsMessage("Os comentários estão desativados para este vídeo.");
+      commentsCountText.textContent = t("Comentários");
+      setCommentsMessage(t("Os comentários estão desativados para este vídeo."));
       return;
     }
     commentsState.items = page.items;
@@ -1205,15 +1214,15 @@ async function loadComments(video) {
     updateCommentsHeader();
     commentsList.innerHTML = "";
     if (commentsState.items.length === 0) {
-      setCommentsMessage("Nenhum comentário.");
+      setCommentsMessage(t("Nenhum comentário."));
       return;
     }
     appendComments(commentsState.items);
     loadMoreCommentsBtn.classList.toggle("hidden", !commentsState.nextpage);
   } catch (err) {
     if (token !== commentsToken) return;
-    commentsCountText.textContent = "Comentários";
-    setCommentsMessage("Não foi possível carregar os comentários.");
+    commentsCountText.textContent = t("Comentários");
+    setCommentsMessage(t("Não foi possível carregar os comentários."));
   }
 }
 
@@ -1223,7 +1232,7 @@ async function loadMoreComments() {
 
   const token = commentsToken;
   loadMoreCommentsBtn.disabled = true;
-  loadMoreCommentsBtn.textContent = "Carregando...";
+  loadMoreCommentsBtn.textContent = t("Carregando...");
   try {
     const page = await fetchCommentsPage(st.videoId, st.nextpage);
     if (token !== commentsToken) return;
@@ -1234,10 +1243,10 @@ async function loadMoreComments() {
     appendComments(fresh);
     loadMoreCommentsBtn.classList.toggle("hidden", !st.nextpage);
   } catch (err) {
-    if (token === commentsToken) showToast("Não foi possível carregar mais comentários.");
+    if (token === commentsToken) showToast(t("Não foi possível carregar mais comentários."));
   } finally {
     loadMoreCommentsBtn.disabled = false;
-    loadMoreCommentsBtn.textContent = "Mostrar mais comentários";
+    loadMoreCommentsBtn.textContent = t("Mostrar mais comentários");
   }
 }
 
@@ -1264,7 +1273,10 @@ function showResultsLayout() {
   resultsView.classList.remove("hidden");
   initialFeedState.classList.add("hidden");
   playlistsHome.classList.add("hidden");
+  subscriptionsHome.classList.add("hidden");
   playlistPage.classList.add("hidden");
+  channelPage.classList.add("hidden");
+  channelMoreBtn.classList.add("hidden");
   state.currentVideo = null;
 }
 
@@ -1279,12 +1291,14 @@ function setPageTitle(text) {
   document.title = text ? `${text} - HooTube` : "HooTube";
 }
 
-function buildUrl({ q = "", p = 1, v = "", pl = "" } = {}) {
+function buildUrl({ q = "", p = 1, v = "", pl = "", c = "" } = {}) {
   const params = new URLSearchParams();
   if (v) {
     params.set("v", v);
   } else if (pl) {
     params.set("playlist", pl);
+  } else if (c) {
+    params.set("channel", c);
   } else if (q) {
     params.set("q", q);
     if (p > 1) params.set("p", String(p));
@@ -1293,6 +1307,8 @@ function buildUrl({ q = "", p = 1, v = "", pl = "" } = {}) {
   return window.location.pathname + (qs ? `?${qs}` : "");
 }
 
+const CHANNEL_ID_PATTERN = /^UC[\w-]{20,}$/;
+
 function readRoute() {
   const params = new URLSearchParams(window.location.search);
   const page = parseInt(params.get("p"), 10);
@@ -1300,7 +1316,8 @@ function readRoute() {
     q: (params.get("q") || "").trim(),
     p: page > 0 ? page : 1,
     v: (params.get("v") || "").trim(),
-    pl: (params.get("playlist") || "").trim()
+    pl: (params.get("playlist") || "").trim(),
+    c: CHANNEL_ID_PATTERN.test((params.get("channel") || "").trim()) ? params.get("channel").trim() : ""
   };
 }
 
@@ -1324,10 +1341,10 @@ function createBasicYoutubeVideo(youtubeId, overrides = {}) {
     id: "yt-" + youtubeId,
     youtubeId,
     type: "youtube",
-    title: "Vídeo do YouTube (" + youtubeId + ")",
+    title: t("Vídeo do YouTube") + " (" + youtubeId + ")",
     thumbnail: `https://i.ytimg.com/vi/${youtubeId}/hqdefault.jpg`,
     duration: "",
-    channel: "Canal no YouTube",
+    channel: t("Canal no YouTube"),
     channelAvatar: "",
     subscribers: "",
     views: "",
@@ -1380,19 +1397,24 @@ async function applyRoute() {
     const video = await resolveVideo(v);
     if (token !== routeToken) return;
     if (!video) {
-      showToast("Vídeo inválido.");
+      showToast(t("Vídeo inválido."));
       navigate({ q, p }, { replace: true });
       return;
     }
     openVideoPlayer(video);
     const origem = history.state || {};
-    backToResultsBtn.classList.toggle("hidden", !(origem.fromPlaylist || searchSession || origem.fromSearch));
-    backToResultsBtn.querySelector("span").textContent = origem.fromPlaylist ? "Voltar para a playlist" : "Voltar para a pesquisa";
+    backToResultsBtn.classList.toggle("hidden", !(origem.fromPlaylist || origem.fromChannel || searchSession || origem.fromSearch));
+    backToResultsBtn.querySelector("span").textContent = origem.fromChannel ? t("Voltar para o canal") : origem.fromPlaylist ? t("Voltar para a playlist") : t("Voltar para a pesquisa");
     return;
   }
 
   if (route.pl) {
     showPlaylistPage(route.pl);
+    return;
+  }
+
+  if (route.c) {
+    showChannelPage(route.c);
     return;
   }
 
@@ -1405,6 +1427,11 @@ async function applyRoute() {
 
 // Clique num resultado: guarda no histórico que veio da busca (permite "voltar" real)
 function openVideoFromResults(video) {
+  const channelId = readRoute().c;
+  if (channelId) {
+    navigate({ v: video.youtubeId || video.id }, { historyState: { fromChannel: channelId } });
+    return;
+  }
   navigate(
     { q: state.currentQuery, p: state.currentPage, v: video.youtubeId || video.id },
     { historyState: { fromSearch: true } }
@@ -1490,7 +1517,7 @@ function renderRecent() {
     const remove = document.createElement("button");
     remove.type = "button";
     remove.className = "recent-remove";
-    remove.setAttribute("aria-label", `Remover "${term}" das pesquisas recentes`);
+    remove.setAttribute("aria-label", t("Remover \"{term}\" das pesquisas recentes", { term }));
     remove.title = "Remover";
     remove.insertAdjacentHTML("beforeend", CLOSE_ICON);
 
@@ -1562,8 +1589,8 @@ searchInput.addEventListener("keydown", e => {
 function goHome() {
   searchInput.value = "";
   clearSearchBtn.classList.add("hidden");
-  const { q, v } = readRoute();
-  if (q || v) navigate({});
+  const { q, v, pl, c } = readRoute();
+  if (q || v || pl || c) navigate({});
 }
 
 searchForm.addEventListener("submit", async (e) => {
@@ -1605,14 +1632,16 @@ paginationNav.addEventListener("click", (e) => {
 });
 
 // Logo Início
+homeLogo.href = buildUrl({}); // raiz do site (abre certo com Ctrl/botão do meio)
 homeLogo.addEventListener("click", (e) => {
+  if (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
   e.preventDefault();
   goHome();
 });
 
 // Voltar da página do player para a busca
 backToResultsBtn.addEventListener("click", () => {
-  if (history.state && (history.state.fromSearch || history.state.fromPlaylist)) {
+  if (history.state && (history.state.fromSearch || history.state.fromPlaylist || history.state.fromChannel)) {
     history.back();
   } else if (searchSession) {
     navigate({ q: searchSession.query, p: searchSession.page });
@@ -1631,12 +1660,12 @@ shareBtn.addEventListener("click", async () => {
   try {
     if (navigator.clipboard) {
       await navigator.clipboard.writeText(url);
-      showToast("Link do vídeo copiado para a área de transferência!");
+      showToast(t("Link do vídeo copiado para a área de transferência!"));
     } else {
-      showToast("Link: " + url);
+      showToast(t("Link: {url}", { url }));
     }
   } catch (err) {
-    showToast("Link copiado: " + url);
+    showToast(t("Link copiado: {url}", { url }));
   }
 });
 
@@ -1655,10 +1684,10 @@ themeToggleBtn.addEventListener("click", () => {
   const themeIcon = document.getElementById("themeIcon");
   if (state.isDarkTheme) {
     themeIcon.innerHTML = `<path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-3.03 0-5.5-2.47-5.5-5.5 0-1.82.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z"/>`;
-    showToast("Tema escuro ativado");
+    showToast(t("Tema escuro ativado"));
   } else {
     themeIcon.innerHTML = `<path d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58c-.39-.39-1.03-.39-1.41 0s-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41L5.99 4.58zm12.37 12.37c-.39-.39-1.03-.39-1.41 0s-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41l-1.06-1.06zm1.06-10.96c.39-.39.39-1.03 0-1.41s-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06zM7.05 18.36c.39-.39.39-1.03 0-1.41s-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06z"/>`;
-    showToast("Tema claro ativado");
+    showToast(t("Tema claro ativado"));
   }
 });
 
@@ -1696,7 +1725,7 @@ function sanitizeVideoEntry(entry) {
   if (!YOUTUBE_ID_PATTERN.test(id)) return null;
   return {
     id,
-    title: cleanText(entry.title) || "Vídeo do YouTube",
+    title: cleanText(entry.title) || t("Vídeo do YouTube"),
     channel: cleanText(entry.channel, 100),
     duration: cleanText(entry.duration, 12),
     savedAt: Number.isFinite(entry.savedAt) ? entry.savedAt : Date.now()
@@ -1732,7 +1761,7 @@ function persistPlaylists(list) {
   try {
     localStorage.setItem(PLAYLISTS_KEY, JSON.stringify(list));
   } catch (err) {
-    showToast("Não foi possível guardar as playlists neste navegador.");
+    showToast(t("Não foi possível guardar as playlists neste navegador."));
   }
 }
 
@@ -1754,7 +1783,7 @@ function createPlaylist(name) {
   const existing = list.find(p => p.name.toLowerCase() === clean.toLowerCase());
   if (existing) return existing;
   if (list.length >= PLAYLISTS_MAX) {
-    showToast(`Limite de ${PLAYLISTS_MAX} playlists atingido.`);
+    showToast(t("Limite de {n} playlists atingido.", { n: PLAYLISTS_MAX }));
     return null;
   }
   const playlist = { id: newId(), name: clean, createdAt: Date.now(), videos: [] };
@@ -1775,7 +1804,7 @@ function setVideoInPlaylist(playlistId, video, present) {
   const has = playlist.videos.some(v => v.id === entry.id);
   if (present && !has) {
     if (playlist.videos.length >= PLAYLIST_VIDEOS_MAX) {
-      showToast(`Esta playlist já tem ${PLAYLIST_VIDEOS_MAX} vídeos.`);
+      showToast(t("Esta playlist já tem {n} vídeos.", { n: PLAYLIST_VIDEOS_MAX }));
       return false;
     }
     playlist.videos.push(entry);
@@ -1818,15 +1847,15 @@ function duplicatePlaylist(playlistId) {
   const index = list.findIndex(p => p.id === playlistId);
   if (index < 0) return null;
   if (list.length >= PLAYLISTS_MAX) {
-    showToast(`Limite de ${PLAYLISTS_MAX} playlists atingido.`);
+    showToast(t("Limite de {n} playlists atingido.", { n: PLAYLISTS_MAX }));
     return null;
   }
   const source = list[index];
-  const root = source.name.replace(/ \(cópia(?: \d+)?\)$/, ""); // copiar uma cópia não empilha "(cópia) (cópia)"
+  const root = source.name.replace(/ \((?:cópia|copy|copia)(?: \d+)?\)$/i, ""); // copiar uma cópia não empilha "(cópia) (cópia)"
   const taken = new Set(list.map(p => p.name.toLowerCase()));
   let name = "";
   for (let n = 1; !name || taken.has(name.toLowerCase()); n++) {
-    const suffix = n === 1 ? " (cópia)" : ` (cópia ${n})`;
+    const suffix = " " + (n === 1 ? t("(cópia)") : t("(cópia {n})", { n }));
     name = root.slice(0, PLAYLIST_NAME_MAX - suffix.length).trimEnd() + suffix;
   }
   const copy = { id: newId(), name, createdAt: Date.now(), videos: source.videos.map(v => ({ ...v })) };
@@ -1835,12 +1864,155 @@ function duplicatePlaylist(playlistId) {
   return copy;
 }
 
-const countLabel = (n, one, many) => `${n.toLocaleString("pt-BR")} ${n === 1 ? one : many}`;
+const countLabel = (n, one, many) => `${n.toLocaleString(window.HOOTUBE_LOCALE)} ${t(n === 1 ? one : many)}`;
+
+// ---- Inscrições: lista de canais guardada no navegador (como as playlists) ----------------
+const SUBS_KEY = "hootube.inscricoes";
+const SUBS_MAX = 500;
+let subsMemory = [];
+
+const subKey = sub => sub.id.startsWith("UC") ? sub.id : "n:" + sub.name.toLowerCase();
+
+function sanitizeSubscription(item) {
+  const name = cleanText(item && item.name, 100);
+  if (!name) return null;
+  const rawId = cleanText(item.id, 64);
+  const avatar = typeof item.avatar === "string" && /^https:\/\//.test(item.avatar) ? item.avatar.slice(0, 500) : "";
+  return {
+    id: /^UC[\w-]{20,}$/.test(rawId) ? rawId : "n:" + name.toLowerCase(),
+    name,
+    avatar,
+    subscribedAt: Number.isFinite(item.subscribedAt) ? item.subscribedAt : Date.now()
+  };
+}
+
+function loadSubscriptions() {
+  try {
+    const list = JSON.parse(localStorage.getItem(SUBS_KEY) || "[]");
+    if (Array.isArray(list)) return list.map(sanitizeSubscription).filter(Boolean).slice(0, SUBS_MAX);
+  } catch (err) { /* localStorage indisponível ou conteúdo inválido */ }
+  return subsMemory;
+}
+
+function persistSubscriptions(list) {
+  subsMemory = list;
+  try {
+    localStorage.setItem(SUBS_KEY, JSON.stringify(list));
+  } catch (err) {
+    showToast(t("Não foi possível guardar as inscrições neste navegador."));
+  }
+}
+
+function findSubscription(list, channel) {
+  const name = (channel.name || "").toLowerCase();
+  return list.find(s => (channel.id && s.id === channel.id) || (name && s.name.toLowerCase() === name));
+}
+
+function updateSubscribeButton(video) {
+  const on = !!video && !!findSubscription(loadSubscriptions(), { id: video.channelId, name: video.channel });
+  subscribeBtn.classList.toggle("subscribed", on);
+  subscribeBtn.setAttribute("aria-pressed", String(on));
+  subscribeBtn.textContent = on ? t("Inscrito") : t("Inscrever-se");
+  subscribeBtn.classList.toggle("hidden", !video || !video.channel);
+}
+
+// Inscreve ou cancela a inscrição; devolve true se o canal ficou inscrito
+function toggleSubscription(channel) {
+  const list = loadSubscriptions();
+  const existing = findSubscription(list, { id: channel.id, name: channel.name });
+  if (existing) {
+    persistSubscriptions(list.filter(s => s !== existing));
+    showToast(t("Inscrição em {name} cancelada.", { name: existing.name }));
+    return false;
+  }
+  if (list.length >= SUBS_MAX) { showToast(t("Limite de inscrições atingido.")); return false; }
+  const sub = sanitizeSubscription({ id: channel.id, name: channel.name, avatar: channel.avatar });
+  persistSubscriptions([sub, ...list]);
+  showToast(t("Inscrito em {name}.", { name: sub.name }));
+  return true;
+}
+
+subscribeBtn.addEventListener("click", () => {
+  const video = state.currentVideo;
+  if (!video || !video.channel) return;
+  toggleSubscription({ id: video.channelId, name: video.channel, avatar: video.channelAvatar });
+  updateSubscribeButton(video);
+});
+
+// Foto e nome do canal no player abrem a página do canal (quando o id é conhecido)
+[playerChannelAvatar, playerChannelName].forEach(el => el.addEventListener("click", () => {
+  const video = state.currentVideo;
+  if (video && video.channelId) navigate({ c: video.channelId }, { historyState: { fromVideo: true } });
+}));
+
+function renderSubscriptionsHome() {
+  const subs = loadSubscriptions();
+  subscriptionsHome.replaceChildren();
+  subscriptionsHome.classList.toggle("hidden", subs.length === 0);
+  if (!subs.length) return;
+
+  const heading = document.createElement("h2");
+  heading.className = "home-section-title";
+  heading.textContent = t("Suas inscrições");
+  const row = document.createElement("div");
+  row.className = "playlist-tiles sub-tiles";
+  subs.forEach(sub => row.appendChild(createSubscriptionTile(sub)));
+  subscriptionsHome.append(heading, row);
+}
+
+function createSubscriptionTile(sub) {
+  const wrap = document.createElement("div");
+  wrap.className = "sub-tile-wrap";
+
+  // Abre a página do canal (sem o id, que só vem do Piped, cai na busca pelo nome)
+  const link = document.createElement("a");
+  link.className = "sub-tile";
+  const route = CHANNEL_ID_PATTERN.test(sub.id) ? { c: sub.id } : { q: sub.name };
+  link.href = buildUrl(route);
+  link.setAttribute("aria-label", t("Ver vídeos de {name}", { name: sub.name }));
+  link.addEventListener("click", e => {
+    if (e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
+    e.preventDefault();
+    navigate(route, { historyState: { fromHome: true } });
+  });
+
+  const avatar = document.createElement("span");
+  avatar.className = "sub-tile-avatar";
+  if (sub.avatar) {
+    const img = document.createElement("img");
+    img.loading = "lazy";
+    img.alt = "";
+    img.referrerPolicy = "no-referrer";
+    img.src = sub.avatar;
+    avatar.appendChild(img);
+  } else {
+    avatar.textContent = sub.name.charAt(0).toUpperCase();
+  }
+  const name = document.createElement("span");
+  name.className = "sub-tile-name";
+  name.textContent = sub.name;
+  link.append(avatar, name);
+
+  const remove = document.createElement("button");
+  remove.type = "button";
+  remove.className = "kebab-btn sub-remove-btn";
+  remove.title = t("Cancelar inscrição");
+  remove.setAttribute("aria-label", t("Cancelar inscrição em {name}", { name: sub.name }));
+  remove.insertAdjacentHTML("beforeend", '<svg viewBox="0 0 24 24" class="icon" aria-hidden="true"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>');
+  remove.addEventListener("click", () => {
+    persistSubscriptions(loadSubscriptions().filter(s => subKey(s) !== subKey(sub)));
+    showToast(t("Inscrição em {name} cancelada.", { name: sub.name }));
+    if (isHomeVisible()) renderHomeContent();
+  });
+
+  wrap.append(link, remove);
+  return wrap;
+}
 
 // ---- Tela inicial: vitrine com um cartão por playlist (cada uma abre a sua página) --------
 function isHomeVisible() {
-  const { q, v, pl } = readRoute();
-  return !q && !v && !pl && !resultsView.classList.contains("hidden");
+  const { q, v, pl, c } = readRoute();
+  return !q && !v && !pl && !c && !resultsView.classList.contains("hidden");
 }
 
 function isPlaylistPageVisible() {
@@ -1859,13 +2031,14 @@ function renderHomeContent() {
   const playlists = loadPlaylists();
   playlistsHome.replaceChildren();
   playlistPage.classList.add("hidden");
+  renderSubscriptionsHome();
   playlistsHome.classList.toggle("hidden", playlists.length === 0);
-  initialFeedState.classList.toggle("hidden", playlists.length > 0);
+  initialFeedState.classList.toggle("hidden", playlists.length > 0 || loadSubscriptions().length > 0);
   if (!playlists.length) return;
 
   const heading = document.createElement("h2");
   heading.className = "home-section-title";
-  heading.textContent = "Suas playlists";
+  heading.textContent = t("Suas playlists");
   const grid = document.createElement("div");
   grid.className = "playlist-tiles";
   playlists.forEach(playlist => grid.appendChild(createPlaylistTile(playlist)));
@@ -1879,7 +2052,7 @@ function createPlaylistTile(playlist) {
   const link = document.createElement("a");
   link.className = "pl-tile";
   link.href = buildUrl({ pl: playlist.id });
-  link.setAttribute("aria-label", `Abrir a playlist ${playlist.name} (${total})`);
+  link.setAttribute("aria-label", t("Abrir a playlist {name} ({total})", { name: playlist.name, total }));
   link.addEventListener("click", e => {
     if (e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
     e.preventDefault();
@@ -1921,6 +2094,213 @@ function createPlaylistTile(playlist) {
   return wrap;
 }
 
+// ---- Página de um canal (?channel=ID): dados e vídeos vêm do Piped ---------------------------
+let channelToken = 0;
+let channelState = null; // { id, videos, nextpage }
+
+async function fetchChannelJson(path) {
+  let lastError;
+  for (const base of PIPED_INSTANCES) {
+    try {
+      const res = await fetch(`${base}${path}`, { signal: AbortSignal.timeout(10000) });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    } catch (err) {
+      lastError = err;
+    }
+  }
+  throw lastError || new Error("Nenhuma instância disponível");
+}
+
+// Os vídeos do canal não trazem o nome/foto dele em alguns Pipeds: completa com os dados do canal
+function mapChannelVideos(items, channel) {
+  const videos = (items || []).filter(i => (!i.type || i.type === "stream") && i.url).map(item => {
+    const video = mapPipedItem(item);
+    if (!item.uploaderName) video.channel = channel.name;
+    if (!video.channelAvatar) video.channelAvatar = channel.avatar;
+    video.channelId = video.channelId || channel.id;
+    videoCache.set(video.youtubeId, video);
+    return video;
+  });
+  return videos;
+}
+
+async function showChannelPage(id) {
+  const token = ++channelToken;
+  searchToken++;
+  searchSession = null;
+  clearPlayer();
+  playerView.classList.add("hidden");
+  resultsView.classList.remove("hidden");
+  initialFeedState.classList.add("hidden");
+  playlistsHome.classList.add("hidden");
+  subscriptionsHome.classList.add("hidden");
+  playlistPage.classList.add("hidden");
+  paginationNav.classList.add("hidden");
+  resultsHeader.classList.add("hidden");
+  emptyState.classList.add("hidden");
+  resultsContainer.replaceChildren();
+  resultsContainer.classList.remove("hidden");
+  channelMoreBtn.classList.add("hidden");
+  state.currentVideo = null;
+  state.currentQuery = "";
+  state.currentPage = 1;
+  channelState = null;
+  setPageTitle("");
+
+  channelPage.classList.remove("hidden");
+  channelPage.replaceChildren();
+  const back = document.createElement("button");
+  back.type = "button";
+  back.className = "back-btn";
+  back.insertAdjacentHTML("beforeend", `<svg viewBox="0 0 24 24" class="icon"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg><span>${t("Voltar")}</span>`);
+  back.addEventListener("click", () => {
+    if (history.state && (history.state.fromHome || history.state.fromVideo)) history.back();
+    else navigate({});
+  });
+  const status = document.createElement("p");
+  status.className = "channel-status";
+  status.textContent = t("Carregando...");
+  channelPage.append(back, status);
+
+  let data;
+  try {
+    data = await fetchChannelJson(`/channel/${encodeURIComponent(id)}`);
+  } catch (err) {
+    if (token === channelToken) status.textContent = t("Não foi possível carregar o canal.");
+    return;
+  }
+  if (token !== channelToken) return;
+
+  const channel = {
+    id,
+    name: cleanText(data.name, 100) || t("Canal no YouTube"),
+    avatar: directImageUrl(data.avatarUrl),
+    subscribers: Number.isFinite(data.subscriberCount) && data.subscriberCount >= 0 ? data.subscriberCount : null,
+    description: cleanText(data.description, 400),
+    verified: !!data.verified
+  };
+  setPageTitle(channel.name);
+
+  const head = document.createElement("div");
+  head.className = "channel-head";
+  const avatar = document.createElement("span");
+  avatar.className = "channel-head-avatar";
+  if (channel.avatar) {
+    const img = document.createElement("img");
+    img.alt = "";
+    img.referrerPolicy = "no-referrer";
+    img.src = channel.avatar;
+    avatar.appendChild(img);
+  } else {
+    avatar.textContent = channel.name.charAt(0).toUpperCase();
+  }
+  const info = document.createElement("div");
+  info.className = "channel-head-info";
+  const title = document.createElement("h1");
+  title.className = "channel-head-name";
+  title.textContent = channel.name;
+  info.appendChild(title);
+  if (channel.subscribers !== null) {
+    const subs = document.createElement("span");
+    subs.className = "subscribers-count";
+    subs.textContent = t("{n} inscritos", { n: new Intl.NumberFormat(window.HOOTUBE_LOCALE, { notation: "compact" }).format(channel.subscribers) });
+    info.appendChild(subs);
+  }
+  if (channel.description) {
+    const desc = document.createElement("p");
+    desc.className = "channel-head-desc";
+    desc.textContent = channel.description;
+    info.appendChild(desc);
+  }
+  const subscribe = document.createElement("button");
+  subscribe.type = "button";
+  subscribe.className = "subscribe-btn";
+  const paint = () => {
+    const on = !!findSubscription(loadSubscriptions(), { id: channel.id, name: channel.name });
+    subscribe.classList.toggle("subscribed", on);
+    subscribe.setAttribute("aria-pressed", String(on));
+    subscribe.textContent = on ? t("Inscrito") : t("Inscrever-se");
+  };
+  subscribe.addEventListener("click", () => { toggleSubscription(channel); paint(); });
+  paint();
+  head.append(avatar, info, subscribe);
+  status.remove();
+  channelPage.appendChild(head);
+
+  // Alguns Pipeds entregam o canal sem a lista de vídeos: nesse caso busca pelo nome e fica
+  // só com os resultados cujo canal tem este id
+  const videos = mapChannelVideos(data.relatedStreams, channel);
+  channelState = { id, channel, videos, mode: videos.length ? "channel" : "search", nextpage: videos.length ? (data.nextpage || null) : null };
+  if (channelState.mode === "search") {
+    try { await loadMoreChannelVideos(channelState); } catch (err) { /* mostra "sem vídeos" abaixo */ }
+    if (token !== channelToken) return;
+  }
+  renderChannelVideos();
+  if (!videos.length) {
+    const none = document.createElement("p");
+    none.className = "channel-status";
+    none.textContent = t("Este canal não tem vídeos para mostrar.");
+    channelPage.appendChild(none);
+  }
+}
+
+function renderChannelVideos() {
+  if (!channelState) return;
+  renderResults(channelState.videos);
+  emptyState.classList.add("hidden");
+  resultsContainer.classList.remove("hidden");
+  channelMoreBtn.classList.toggle("hidden", !channelState.nextpage);
+  channelMoreBtn.disabled = false;
+  channelMoreBtn.textContent = t("Mostrar mais vídeos");
+}
+
+// Busca mais vídeos do canal (pela API do canal ou, no plano B, pela busca) e soma ao estado
+async function loadMoreChannelVideos(current) {
+  const have = new Set(current.videos.map(v => v.youtubeId));
+  const add = list => list.filter(v => v.channelId === current.id && !have.has(v.youtubeId) && have.add(v.youtubeId)).forEach(v => current.videos.push(v));
+
+  if (current.mode === "channel") {
+    const data = await fetchChannelJson(`/nextpage/channel/${encodeURIComponent(current.id)}?nextpage=${encodeURIComponent(current.nextpage)}`);
+    const before = current.videos.length;
+    mapChannelVideos(data.relatedStreams, current.channel).filter(v => !have.has(v.youtubeId)).forEach(v => current.videos.push(v));
+    current.nextpage = data.nextpage || null;
+    return current.videos.length - before;
+  }
+
+  const query = encodeURIComponent(current.channel.name);
+  const before = current.videos.length;
+  for (let hop = 0; hop < 3 && current.videos.length - before < 10; hop++) {
+    if (hop > 0 && !current.nextpage) break;
+    const path = current.nextpage
+      ? `/nextpage/search?nextpage=${encodeURIComponent(current.nextpage.token)}&q=${query}&filter=videos`
+      : `/search?q=${query}&filter=videos`;
+    const page = await fetchPipedPage(path);
+    add(page.items);
+    current.nextpage = page.nextpage;
+    if (!page.nextpage) break;
+  }
+  return current.videos.length - before;
+}
+
+channelMoreBtn.addEventListener("click", async () => {
+  const current = channelState;
+  if (!current || !current.nextpage) return;
+  const token = channelToken;
+  channelMoreBtn.disabled = true;
+  channelMoreBtn.textContent = t("Carregando...");
+  try {
+    await loadMoreChannelVideos(current);
+    if (token !== channelToken || channelState !== current) return;
+    renderChannelVideos();
+  } catch (err) {
+    if (token !== channelToken) return;
+    showToast(t("Não foi possível carregar mais resultados."));
+    channelMoreBtn.disabled = false;
+    channelMoreBtn.textContent = t("Mostrar mais vídeos");
+  }
+});
+
 // ---- Página de uma playlist (?playlist=ID) -------------------------------------------
 function showPlaylistPage(id) {
   searchToken++;
@@ -1930,6 +2310,9 @@ function showPlaylistPage(id) {
   resultsView.classList.remove("hidden");
   initialFeedState.classList.add("hidden");
   playlistsHome.classList.add("hidden");
+  subscriptionsHome.classList.add("hidden");
+  channelPage.classList.add("hidden");
+  channelMoreBtn.classList.add("hidden");
   paginationNav.classList.add("hidden");
   resultsHeader.classList.add("hidden");
   resultsContainer.classList.add("hidden");
@@ -1940,7 +2323,7 @@ function showPlaylistPage(id) {
 
   if (!renderPlaylistPage(id)) {
     playlistPage.classList.add("hidden");
-    showToast("Playlist não encontrada.");
+    showToast(t("Playlist não encontrada."));
     navigate({}, { replace: true });
   }
 }
@@ -1955,7 +2338,7 @@ function renderPlaylistPage(id) {
   const back = document.createElement("button");
   back.type = "button";
   back.className = "back-btn";
-  back.insertAdjacentHTML("beforeend", '<svg viewBox="0 0 24 24" class="icon"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg><span>Voltar para o início</span>');
+  back.insertAdjacentHTML("beforeend", `<svg viewBox="0 0 24 24" class="icon"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg><span>${t("Voltar para o início")}</span>`);
   back.addEventListener("click", () => {
     if (history.state && history.state.fromHome) history.back();
     else navigate({});
@@ -1975,7 +2358,7 @@ function renderPlaylistPage(id) {
   if (!playlist.videos.length) {
     const empty = document.createElement("p");
     empty.className = "playlist-empty";
-    empty.textContent = "Nenhum vídeo ainda. Abra um vídeo e use o botão Salvar.";
+    empty.textContent = t("Nenhum vídeo ainda. Abra um vídeo e use o botão Salvar.");
     playlistPage.appendChild(empty);
   } else {
     const grid = document.createElement("div");
@@ -1995,7 +2378,7 @@ function createPlaylistCard(playlist, entry) {
   const link = document.createElement("a");
   link.className = "pl-link";
   link.href = buildUrl({ v: entry.id });
-  link.setAttribute("aria-label", `Assistir ${entry.title}`);
+  link.setAttribute("aria-label", t("Assistir {title}", { title: entry.title }));
   link.addEventListener("click", e => {
     if (e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
     e.preventDefault();
@@ -2030,12 +2413,12 @@ function createPlaylistCard(playlist, entry) {
   remove.type = "button";
   remove.className = "pl-remove";
   remove.title = "Remover da playlist";
-  remove.setAttribute("aria-label", `Remover ${entry.title} da playlist ${playlist.name}`);
+  remove.setAttribute("aria-label", t("Remover {title} da playlist {name}", { title: entry.title, name: playlist.name }));
   remove.insertAdjacentHTML("beforeend", CLOSE_ICON);
   remove.addEventListener("click", () => {
     removeVideoFromPlaylist(playlist.id, entry.id);
     renderPlaylistPage(playlist.id);
-    showToast(`Removido de “${playlist.name}”.`);
+    showToast(t("Removido de “{name}”.", { name: playlist.name }));
   });
 
   card.append(link, remove);
@@ -2054,8 +2437,8 @@ function createKebabButton(playlist, context) {
   const button = document.createElement("button");
   button.type = "button";
   button.className = "kebab-btn";
-  button.title = "Mais opções";
-  button.setAttribute("aria-label", `Mais opções da playlist ${playlist.name}`);
+  button.title = t("Mais opções");
+  button.setAttribute("aria-label", t("Mais opções da playlist {name}", { name: playlist.name }));
   button.setAttribute("aria-haspopup", "menu");
   button.setAttribute("aria-expanded", "false");
   button.insertAdjacentHTML("beforeend", MORE_ICON);
@@ -2082,8 +2465,8 @@ function openPlaylistMenu(button, playlistId, context) {
   const el = document.createElement("div");
   el.className = "pl-menu";
   el.setAttribute("role", "menu");
-  el.setAttribute("aria-label", "Opções da playlist");
-  [["rename", "Renomear", EDIT_ICON], ["duplicate", "Duplicar", COPY_ICON], ["delete", "Excluir", TRASH_ICON, true]]
+  el.setAttribute("aria-label", t("Opções da playlist"));
+  [["rename", t("Renomear"), EDIT_ICON], ["duplicate", t("Duplicar"), COPY_ICON], ["delete", t("Excluir"), TRASH_ICON, true]]
     .forEach(([action, label, icon, danger]) => {
       const item = document.createElement("button");
       item.type = "button";
@@ -2113,10 +2496,10 @@ function openPlaylistMenu(button, playlistId, context) {
 
 function confirmDeletePlaylist(playlist, context) {
   const n = playlist.videos.length;
-  const detail = n ? ` e seus ${countLabel(n, "vídeo", "vídeos")}` : "";
-  if (!confirm(`Excluir a playlist “${playlist.name}”${detail}? Isso não pode ser desfeito.`)) return;
+  const detail = n ? " " + t("e seus {videos}", { videos: countLabel(n, "vídeo", "vídeos") }) : "";
+  if (!confirm(t("Excluir a playlist “{name}”{detail}? Isso não pode ser desfeito.", { name: playlist.name, detail }))) return;
   deletePlaylist(playlist.id);
-  showToast("Playlist excluída.");
+  showToast(t("Playlist excluída."));
   if (context === "page") navigate({}, { replace: true }); // sem deixar a página apagada no histórico
   else refreshPlaylistViews();
 }
@@ -2140,7 +2523,7 @@ function runPlaylistAction(action) {
     const copy = duplicatePlaylist(playlistId);
     if (!copy) return;
     refreshPlaylistViews();
-    showToast(`Criada “${copy.name}”.`);
+    showToast(t("Criada “{name}”.", { name: copy.name }));
   } else if (action === "delete") {
     confirmDeletePlaylist(playlist, context);
   }
@@ -2182,17 +2565,17 @@ renameForm.addEventListener("submit", e => {
   if (!result.ok) {
     if (result.reason === "missing") {
       closeModal(renameModal);
-      showToast("Playlist não encontrada.");
+      showToast(t("Playlist não encontrada."));
       refreshPlaylistViews();
       return;
     }
-    showToast(result.reason === "empty" ? "Digite um nome para a playlist." : "Já existe uma playlist com esse nome.");
+    showToast(result.reason === "empty" ? t("Digite um nome para a playlist.") : t("Já existe uma playlist com esse nome."));
     renameInput.focus();
     return;
   }
   closeModal(renameModal);
   refreshPlaylistViews();
-  showToast("Playlist renomeada.");
+  showToast(t("Playlist renomeada."));
 });
 
 // ---- Janelas (modais) ---------------------------------------------------------------
@@ -2245,7 +2628,7 @@ function updateSaveButton() {
   const saved = playlistsWithVideo(video.youtubeId).length > 0;
   saveBtn.setAttribute("aria-pressed", String(saved));
   saveIcon.querySelector("path").setAttribute("d", saved ? ICON_PLAYLIST_CHECK : ICON_PLAYLIST_ADD);
-  saveLabel.textContent = saved ? "Salvo" : "Salvar";
+  saveLabel.textContent = saved ? t("Salvo") : t("Salvar");
 }
 
 // Vídeo que a janela "Salvar em…" está editando: o aberto no player ou um resultado da pesquisa
@@ -2258,7 +2641,7 @@ function savedVideoIds() {
 
 function setCardSaveState(button, saved) {
   button.setAttribute("aria-pressed", String(saved));
-  button.title = saved ? "Salvo em playlist (editar)" : "Salvar em playlist";
+  button.title = saved ? t("Salvo em playlist (editar)") : t("Salvar em playlist");
   button.querySelector("path").setAttribute("d", saved ? ICON_PLAYLIST_CHECK : ICON_PLAYLIST_ADD);
 }
 
@@ -2289,7 +2672,7 @@ function renderPlaylistPicker() {
   if (!playlists.length) {
     const empty = document.createElement("li");
     empty.className = "picker-empty";
-    empty.textContent = "Você ainda não tem playlists. Crie a primeira abaixo.";
+    empty.textContent = t("Você ainda não tem playlists. Crie a primeira abaixo.");
     playlistPicker.appendChild(empty);
     return;
   }
@@ -2324,7 +2707,7 @@ playlistPicker.addEventListener("change", e => {
   renderPlaylistPicker();
   refreshSaveStates();
   refreshPlaylistViews();
-  if (playlist) showToast(box.checked ? `Salvo em “${playlist.name}”.` : `Removido de “${playlist.name}”.`);
+  if (playlist) showToast(box.checked ? t("Salvo em “{name}”.", { name: playlist.name }) : t("Removido de “{name}”.", { name: playlist.name }));
   // mantém o foco no mesmo item depois de redesenhar a lista
   const again = playlistPicker.querySelector(`input[data-id="${CSS.escape(box.dataset.id)}"]`);
   if (again) again.focus();
@@ -2335,7 +2718,7 @@ playlistNewForm.addEventListener("submit", e => {
   if (!saveTarget) return;
   const playlist = createPlaylist(playlistNewName.value);
   if (!playlist) {
-    if (!playlistNewName.value.trim()) showToast("Digite um nome para a playlist.");
+    if (!playlistNewName.value.trim()) showToast(t("Digite um nome para a playlist."));
     return;
   }
   setVideoInPlaylist(playlist.id, saveTarget, true); // criar já salva o vídeo, como no YouTube
@@ -2343,41 +2726,70 @@ playlistNewForm.addEventListener("submit", e => {
   renderPlaylistPicker();
   refreshSaveStates();
   refreshPlaylistViews();
-  showToast(`Salvo em “${playlist.name}”.`);
+  showToast(t("Salvo em “{name}”.", { name: playlist.name }));
 });
 
 // ---- Configurações: exportar e importar --------------------------------------------
 function describePlaylists() {
   const list = loadPlaylists();
-  if (!list.length) return "Você ainda não tem playlists salvas.";
+  if (!list.length) return t("Você ainda não tem playlists salvas.");
   const videos = list.reduce((n, p) => n + p.videos.length, 0);
   return `${countLabel(list.length, "playlist", "playlists")} · ${countLabel(videos, "vídeo", "vídeos")}`;
 }
 
-settingsBtn.addEventListener("click", () => {
+function describeSubscriptions() {
+  const n = loadSubscriptions().length;
+  return n ? countLabel(n, "canal inscrito", "canais inscritos") : t("Você ainda não tem inscrições.");
+}
+
+function refreshSettingsSummary() {
   settingsSummary.textContent = describePlaylists();
-  openModal(settingsModal, "#exportBtn");
+  subsSummary.textContent = describeSubscriptions();
+}
+
+settingsBtn.addEventListener("click", () => {
+  refreshSettingsSummary();
+  openModal(settingsModal, "#exportSubsBtn");
 });
 
-exportBtn.addEventListener("click", () => {
-  const playlists = loadPlaylists();
-  if (!playlists.length) {
-    showToast("Você ainda não tem playlists para exportar.");
-    return;
-  }
-  const data = { app: "HooTube", version: 1, exportedAt: new Date().toISOString(), playlists };
+function downloadJson(data, filename) {
   const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
   const link = document.createElement("a");
   link.href = url;
-  link.download = `hootube-playlists-${new Date().toISOString().slice(0, 10)}.json`;
+  link.download = filename;
   document.body.appendChild(link);
   link.click();
   link.remove();
   setTimeout(() => URL.revokeObjectURL(url), 2000);
-  showToast("Playlists exportadas.");
+}
+
+const today = () => new Date().toISOString().slice(0, 10);
+
+exportBtn.addEventListener("click", () => {
+  const playlists = loadPlaylists();
+  if (!playlists.length) {
+    showToast(t("Você ainda não tem playlists para exportar."));
+    return;
+  }
+  downloadJson({ app: "HooTube", type: "playlists", version: 1, exportedAt: new Date().toISOString(), playlists },
+    `hootube-playlists-${today()}.json`);
+  showToast(t("Playlists exportadas."));
 });
 
-importBtn.addEventListener("click", () => importFile.click());
+exportSubsBtn.addEventListener("click", () => {
+  const subscriptions = loadSubscriptions();
+  if (!subscriptions.length) {
+    showToast(t("Você ainda não tem inscrições para exportar."));
+    return;
+  }
+  downloadJson({ app: "HooTube", type: "subscriptions", version: 1, exportedAt: new Date().toISOString(), subscriptions },
+    `hootube-inscricoes-${today()}.json`);
+  showToast(t("Inscrições exportadas."));
+});
+
+let importKind = "playlists";
+importBtn.addEventListener("click", () => { importKind = "playlists"; importFile.click(); });
+importSubsBtn.addEventListener("click", () => { importKind = "subscriptions"; importFile.click(); });
 
 // Soma as playlists do arquivo às existentes (mesmo id ou mesmo nome = junta os vídeos)
 function mergePlaylists(current, incoming) {
@@ -2402,36 +2814,67 @@ function mergePlaylists(current, incoming) {
   return { result, newPlaylists, newVideos };
 }
 
+// Soma as inscrições do arquivo às existentes (sem duplicar o mesmo canal)
+function mergeSubscriptions(current, incoming) {
+  const result = [...current];
+  let added = 0;
+  incoming.forEach(item => {
+    if (result.length >= SUBS_MAX || findSubscription(result, item)) return;
+    result.push(item);
+    added++;
+  });
+  return { result, added };
+}
+
 importFile.addEventListener("change", async () => {
   const file = importFile.files[0];
   importFile.value = ""; // permite escolher o mesmo arquivo de novo
   if (!file) return;
+  const kind = importKind;
+  const label = t(kind === "subscriptions" ? "inscrições" : "playlists");
   if (file.size > IMPORT_MAX_BYTES) {
-    showToast("Arquivo grande demais para ser um backup de playlists.");
+    showToast(t("Arquivo grande demais para ser um backup de {label}.", { label }));
     return;
   }
-  let incoming;
+  let raw;
   try {
     const data = JSON.parse(await file.text());
-    const raw = Array.isArray(data) ? data : data && data.playlists;
+    if (data && !Array.isArray(data) && data.type && data.type !== kind) {
+      showToast(t("Este arquivo é de {other}. Use \"Importar {label}\" com o arquivo certo.", { other: t(data.type === "subscriptions" ? "inscrições" : "playlists"), label }));
+      return;
+    }
+    raw = Array.isArray(data) ? data : data && data[kind];
     if (!Array.isArray(raw)) throw new Error("formato");
-    incoming = raw.map(sanitizePlaylist).filter(Boolean);
   } catch (err) {
-    showToast("Arquivo inválido: não é um backup de playlists do HooTube.");
+    showToast(t("Arquivo inválido: não é um backup de {label} do HooTube.", { label }));
     return;
   }
+
+  if (kind === "subscriptions") {
+    const incoming = raw.map(sanitizeSubscription).filter(Boolean);
+    if (!incoming.length) { showToast(t("Nenhuma inscrição válida encontrada no arquivo.")); return; }
+    const { result, added } = mergeSubscriptions(loadSubscriptions(), incoming);
+    persistSubscriptions(result);
+    refreshSettingsSummary();
+    updateSubscribeButton(state.currentVideo);
+    if (isHomeVisible()) renderHomeContent();
+    showToast(added ? t("Importado: {what}.", { what: countLabel(added, "inscrição nova", "inscrições novas") }) : t("Nada novo para importar: tudo já estava salvo."));
+    return;
+  }
+
+  const incoming = raw.map(sanitizePlaylist).filter(Boolean);
   if (!incoming.length) {
-    showToast("Nenhuma playlist válida encontrada no arquivo.");
+    showToast(t("Nenhuma playlist válida encontrada no arquivo."));
     return;
   }
   const { result, newPlaylists, newVideos } = mergePlaylists(loadPlaylists(), incoming);
   persistPlaylists(result);
-  settingsSummary.textContent = describePlaylists();
+  refreshSettingsSummary();
   refreshSaveStates();
   refreshPlaylistViews();
   showToast(newPlaylists || newVideos
-    ? `Importado: ${countLabel(newPlaylists, "playlist nova", "playlists novas")} e ${countLabel(newVideos, "vídeo novo", "vídeos novos")}.`
-    : "Nada novo para importar: tudo já estava salvo.");
+    ? t("Importado: {what}.", { what: t("{a} e {b}", { a: countLabel(newPlaylists, "playlist nova", "playlists novas"), b: countLabel(newVideos, "vídeo novo", "vídeos novos") }) })
+    : t("Nada novo para importar: tudo já estava salvo."));
 });
 
 // Favicon na cor primária (--cor_primaria em style.css); o do index.html é só reserva
