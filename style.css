@@ -588,6 +588,12 @@ button {
 /* Responsive Player Frame */
 .video-player-frame {
   width: 100%;
+  /* A altura do player não passa do que sobra na janela depois do cabeçalho e do botão
+     de voltar (~72 px) e de uma margem de ~68 px embaixo; em telas baixas ele fica menor e centralizado */
+  max-width: calc((100vh - 140px) * 16 / 9);
+  max-width: calc((100dvh - 140px) * 16 / 9);
+  min-width: min(100%, 320px);
+  align-self: center;
   aspect-ratio: 16 / 9;
   background-color: #000000;
   border-radius: var(--radius-md);
